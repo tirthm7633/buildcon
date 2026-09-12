@@ -1,5 +1,7 @@
+import { redirect } from "next/navigation";
 import { Plus } from "lucide-react";
 
+import { getStaffPermissions, resolvePagePermission } from "@/lib/permissions";
 import { requireFloor } from "@/lib/require-floor";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/shared/page-header";
@@ -9,7 +11,12 @@ import { WalkInsTable } from "@/components/walk-ins/walk-ins-table";
 import type { WalkInRow } from "@/components/walk-ins/walk-in-columns";
 
 export default async function WalkInsPage() {
-  const { floor } = await requireFloor();
+  const { profile, floor } = await requireFloor();
+
+  if (profile.role === "staff" && !resolvePagePermission(await getStaffPermissions(floor.id), "page.walk_ins")) {
+    redirect("/");
+  }
+
   const supabase = await createClient();
 
   const [{ data: walkIns }, { data: staff }] = await Promise.all([

@@ -5,6 +5,7 @@ import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { getCurrentProfile } from "@/lib/auth";
 import { getActiveFloorId } from "@/lib/floor-context";
 import { getFloorConfig } from "@/lib/floors";
+import { getStaffPermissions, resolvePagePermission } from "@/lib/permissions";
 import { getTodayDashboardData } from "@/lib/queries/today";
 import { getFollowUpEntityHref } from "@/lib/follow-up-links";
 import { findLabel, FOLLOW_UP_TYPES } from "@/lib/constants";
@@ -20,6 +21,10 @@ export default async function TodayPage() {
   const floor = getFloorConfig(floorId);
 
   if (!floor.modules.today) {
+    redirect("/walk-ins");
+  }
+
+  if (profile.role === "staff" && !resolvePagePermission(await getStaffPermissions(floorId), "page.today")) {
     redirect("/walk-ins");
   }
 

@@ -8,7 +8,7 @@ import { FloorSwitcher } from "@/components/layout/floor-switcher";
 import { SidebarSearch } from "@/components/layout/sidebar-search";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { UserMenu } from "@/components/layout/user-menu";
-import { getNavItems } from "@/components/layout/nav-items";
+import { filterNavItemsByDisabledKeys, getNavItems } from "@/components/layout/nav-items";
 import type { FloorConfig } from "@/lib/floors";
 import type { FloorId, Profile } from "@/lib/supabase/types";
 import { cn } from "@/lib/utils";
@@ -19,29 +19,27 @@ export function Sidebar({
   floor,
   activeFloorId,
   accessibleFloorIds,
+  disabledPages = [],
 }: {
   logoUrl: string | null;
   profile: Profile;
   floor: FloorConfig;
   activeFloorId: FloorId;
   accessibleFloorIds: FloorId[];
+  disabledPages?: string[];
 }) {
   const [collapsed, setCollapsed] = useState(false);
-  const navItems = getNavItems(floor);
+  const navItems = filterNavItemsByDisabledKeys(getNavItems(floor), disabledPages);
 
   return (
     <aside
       className={cn(
         "hidden shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-200 lg:flex",
-        collapsed ? "w-[72px]" : "w-64"
+        collapsed ? "w-[76px]" : "w-64"
       )}
     >
-      <div className={cn("flex h-20 items-center gap-2 border-b border-sidebar-border px-4", collapsed && "justify-center px-2")}>
-        {!collapsed ? (
-          <Logo logoUrl={logoUrl} variant="light" showWordmark={false} size={56} className="flex-1" />
-        ) : (
-          <Logo logoUrl={logoUrl} variant="light" showWordmark={false} size={40} />
-        )}
+      <div className={cn("flex h-16 items-center gap-2 border-b border-sidebar-border px-4", collapsed && "justify-center px-2")}>
+        {!collapsed ? <Logo logoUrl={logoUrl} variant="light" showWordmark={false} size={32} className="flex-1" /> : null}
         <button
           type="button"
           onClick={() => setCollapsed((v) => !v)}

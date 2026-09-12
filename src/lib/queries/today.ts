@@ -1,7 +1,12 @@
 import "server-only";
 
+import { ROLE_RANK } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/server";
 import type { FollowUp, FollowUpEntity, FollowUpType, FloorId, Profile } from "@/lib/supabase/types";
+
+// Follow-ups with no resolvable creator (or one outside owner/head/manager) sort
+// after every named-assigner group, one rank below the lowest role rank.
+const UNASSIGNED_RANK = Math.max(...Object.values(ROLE_RANK)) + 1;
 
 const HANDLE_MINUTES: Record<FollowUpType, number> = {
   call: 10,
@@ -67,8 +72,9 @@ export async function getTodayDashboardData(floorId: FloorId, profile: Profile) 
   const quotationIds = followUps.filter((f) => f.entity_type === "quotation").map((f) => f.entity_id);
   const walkInIds = followUps.filter((f) => f.entity_type === "walk_in").map((f) => f.entity_id);
   const orderIds = followUps.filter((f) => f.entity_type === "tile_order").map((f) => f.entity_id);
+  const creatorIds = [...new Set(followUps.map((f) => f.created_by).filter((id): id is string => Boolean(id)))];
 
-  const [quotationValues, walkInValues, orderValues] = await Promise.all([
+  const [quotationValues, walkInValues, orderValues, creatorProfiles] = await Promise.all([
     quotationIds.length
       ? supabase.from("quotations").select("id, total, customer_id, quotation_number").in("id", quotationIds)
       : Promise.resolve({ data: [] }),
@@ -78,11 +84,21 @@ export async function getTodayDashboardData(floorId: FloorId, profile: Profile) 
     orderIds.length
       ? supabase.from("tile_orders").select("id, order_value, order_number").in("id", orderIds)
       : Promise.resolve({ data: [] }),
+    creatorIds.length
+      ? supabase.from("profiles").select("id, role").in("id", creatorIds)
+      : Promise.resolve({ data: [] }),
   ]);
 
   const quotationValueMap = new Map((quotationValues.data ?? []).map((q) => [q.id, q]));
   const walkInValueMap = new Map((walkInValues.data ?? []).map((w) => [w.id, w]));
   const orderValueMap = new Map((orderValues.data ?? []).map((o) => [o.id, o]));
+  const creatorRoleMap = new Map((creatorProfiles.data ?? []).map((p) => [p.id, p.role]));
+
+  function assignerRank(createdBy: string | null): number {
+    if (!createdBy) return UNASSIGNED_RANK;
+    const role = creatorRoleMap.get(createdBy);
+    return role ? (ROLE_RANK[role] ?? UNASSIGNED_RANK) : UNASSIGNED_RANK;
+  }
 
   function resolveValueAndLabel(entityType: FollowUpEntity, entityId: string): { value: number; label: string } {
     if (entityType === "quotation") {
@@ -106,6 +122,10 @@ export async function getTodayDashboardData(floorId: FloorId, profile: Profile) 
   });
 
   const sorted = [...enrichedFollowUps].sort((a, b) => {
+    // Owner-assigned tasks always first, then Head-, then Manager-assigned —
+    // dominates the overdue/priority/due-date tiebreakers below.
+    const rankDiff = assignerRank(a.created_by) - assignerRank(b.created_by);
+    if (rankDiff !== 0) return rankDiff;
     const overdueA = new Date(a.due_at).getTime() < Date.now() ? 1 : 0;
     const overdueB = new Date(b.due_at).getTime() < Date.now() ? 1 : 0;
     if (overdueA !== overdueB) return overdueB - overdueA;

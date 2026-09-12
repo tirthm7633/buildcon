@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getAccessibleFloorIds, getCurrentProfile } from "@/lib/auth";
 import { getActiveFloorId } from "@/lib/floor-context";
 import { getFloorConfig } from "@/lib/floors";
+import { disabledManagerPageKeys, disabledPageKeys, getRolePermissions } from "@/lib/permissions";
 import { createClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
@@ -23,6 +24,15 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const floorId = accessibleFloorIds.includes(activeFloorId) ? activeFloorId : accessibleFloorIds[0];
   const floorConfig = getFloorConfig(floorId ?? "tiles");
   const logoUrl = settings?.logo_url ?? null;
+
+  // Staff: gated by their 4 toggleable pages. Manager: fixed Sales Data
+  // restriction only. Head/Owner: never gated, always full access.
+  let disabledPages: string[] = [];
+  if (floorId && profile.role === "staff") {
+    disabledPages = disabledPageKeys(await getRolePermissions(floorId, "staff"));
+  } else if (floorId && profile.role === "manager") {
+    disabledPages = disabledManagerPageKeys(await getRolePermissions(floorId, "manager"));
+  }
 
   if (!floorId) {
     return (
@@ -45,6 +55,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         floor={floorConfig}
         activeFloorId={floorId}
         accessibleFloorIds={accessibleFloorIds}
+        disabledPages={disabledPages}
       />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar
@@ -53,6 +64,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           floor={floorConfig}
           activeFloorId={floorId}
           accessibleFloorIds={accessibleFloorIds}
+          disabledPages={disabledPages}
         />
         <main className="flex-1 overflow-y-auto px-6 py-8 sm:px-10 lg:px-12">
           <div className="mx-auto max-w-7xl">{children}</div>

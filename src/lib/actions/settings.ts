@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { isOwner } from "@/lib/auth";
+import { canManageTeam, isOwner } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { FloorId, UserRole } from "@/lib/supabase/types";
@@ -56,10 +56,11 @@ export async function updateCompanyLogo(logoUrl: string) {
 }
 
 export async function inviteStaffMember(values: InviteStaffFormValues) {
-  if (!(await isOwner())) return { error: "Only the owner can invite staff." };
+  if (!(await canManageTeam())) return { error: "Only the owner or a manager can invite staff." };
 
   const parsed = inviteStaffSchema.safeParse(values);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  if (parsed.data.role === "owner") return { error: "Ownership can't be granted through an invite." };
 
   const admin = createAdminClient();
   const { data: invited, error } = await admin.auth.admin.inviteUserByEmail(parsed.data.email, {
@@ -80,9 +81,13 @@ export async function inviteStaffMember(values: InviteStaffFormValues) {
 }
 
 export async function updateStaffRole(id: string, role: UserRole) {
-  if (!(await isOwner())) return { error: "Only the owner can change roles." };
+  if (!(await canManageTeam())) return { error: "Only the owner or a manager can change roles." };
+  if (role === "owner") return { error: "Ownership can't be reassigned here." };
 
   const supabase = await createClient();
+  const { data: target } = await supabase.from("profiles").select("role").eq("id", id).single();
+  if (target?.role === "owner") return { error: "The owner's role can't be changed." };
+
   const { error } = await supabase.from("profiles").update({ role }).eq("id", id);
   if (error) return { error: error.message };
 
@@ -91,9 +96,12 @@ export async function updateStaffRole(id: string, role: UserRole) {
 }
 
 export async function setStaffActive(id: string, isActive: boolean) {
-  if (!(await isOwner())) return { error: "Only the owner can update staff." };
+  if (!(await canManageTeam())) return { error: "Only the owner or a manager can update staff." };
 
   const supabase = await createClient();
+  const { data: target } = await supabase.from("profiles").select("role").eq("id", id).single();
+  if (target?.role === "owner") return { error: "The owner's status can't be changed." };
+
   const { error } = await supabase.from("profiles").update({ is_active: isActive }).eq("id", id);
   if (error) return { error: error.message };
 
@@ -101,8 +109,11 @@ export async function setStaffActive(id: string, isActive: boolean) {
   return { error: null };
 }
 
+/** No owner-targeting guard needed here, unlike the actions above — Owner's
+ * floor access is never read from this table (getAccessibleFloorIds short-
+ * circuits to all floors for role === 'owner'), so editing it is a no-op. */
 export async function setStaffFloorAccess(userId: string, floorIds: FloorId[]) {
-  if (!(await isOwner())) return { error: "Only the owner can update floor access." };
+  if (!(await canManageTeam())) return { error: "Only the owner or a manager can update floor access." };
 
   const supabase = await createClient();
   await supabase.from("user_floor_access").delete().eq("user_id", userId);

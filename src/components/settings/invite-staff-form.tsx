@@ -33,7 +33,7 @@ export function InviteStaffForm() {
 
   const form = useForm<InviteStaffFormValues>({
     resolver: zodResolver(inviteStaffSchema),
-    defaultValues: { full_name: "", email: "", role: "sales_executive", phone: "", floor_ids: [] },
+    defaultValues: { full_name: "", email: "", role: "staff", phone: "", floor_ids: [] },
   });
 
   function onSubmit(values: InviteStaffFormValues) {

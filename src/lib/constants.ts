@@ -104,12 +104,22 @@ export const FOLLOW_UP_PRIORITIES: { value: FollowUpPriority; label: string; bad
   { value: "urgent", label: "Urgent", badgeClass: "bg-rose-50 text-rose-700 border-rose-200" },
 ];
 
+/** Highest seniority first — matches the per-floor hierarchy (Staff < Manager < Head < Owner). */
 export const USER_ROLES: { value: UserRole; label: string }[] = [
   { value: "owner", label: "Owner" },
-  { value: "floor_manager", label: "Floor Manager" },
-  { value: "sales_executive", label: "Sales Executive" },
-  { value: "accountant", label: "Accountant" },
-  { value: "viewer", label: "Viewer" },
+  { value: "head", label: "Head" },
+  { value: "manager", label: "Manager" },
+  { value: "staff", label: "Staff" },
+];
+
+export const ROLE_RANK: Record<UserRole, number> = { owner: 0, head: 1, manager: 2, staff: 3 };
+
+/** Roles a permissions panel can ever target — Owner is never gated, so it's
+ * never a valid target even though it's a valid viewer/editor. */
+export const GATABLE_ROLES: { value: Extract<UserRole, "head" | "manager" | "staff">; label: string }[] = [
+  { value: "head", label: "Head" },
+  { value: "manager", label: "Manager" },
+  { value: "staff", label: "Staff" },
 ];
 
 export function findLabel<T extends { value: string; label: string }>(list: readonly T[], value: string) {

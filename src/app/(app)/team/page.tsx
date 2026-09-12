@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-import { getCurrentProfile, isOwner } from "@/lib/auth";
+import { canManageTeam, getCurrentProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/shared/page-header";
 import { InviteStaffForm } from "@/components/settings/invite-staff-form";
@@ -8,7 +8,7 @@ import { TeamTable, type StaffRow } from "@/components/settings/team-table";
 
 export default async function TeamPage() {
   const profile = await getCurrentProfile();
-  if (!(await isOwner())) redirect("/");
+  if (!(await canManageTeam())) redirect("/");
 
   const supabase = await createClient();
   const [{ data: staff }, { data: access }] = await Promise.all([

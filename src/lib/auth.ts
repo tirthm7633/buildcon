@@ -3,7 +3,7 @@ import { cache } from "react";
 
 import { createClient } from "@/lib/supabase/server";
 import { FLOORS } from "@/lib/floors";
-import type { FloorId, Profile } from "@/lib/supabase/types";
+import type { FloorId, Profile, UserRole } from "@/lib/supabase/types";
 
 export const getCurrentProfile = cache(async (): Promise<Profile | null> => {
   const supabase = await createClient();
@@ -22,6 +22,13 @@ export async function isOwner() {
   return profile?.role === "owner";
 }
 
+/** Owner or Manager — the two roles with unrestricted page access (Manager's
+ * one carve-out, Sales Data, is enforced separately in role_permissions). */
+export async function canManageTeam() {
+  const profile = await getCurrentProfile();
+  return profile?.role === "owner" || profile?.role === "manager";
+}
+
 export const getAccessibleFloorIds = cache(async (): Promise<FloorId[]> => {
   const profile = await getCurrentProfile();
   if (!profile) return [];
@@ -37,8 +44,18 @@ export async function canAccessFloor(floorId: FloorId) {
   return floors.includes(floorId);
 }
 
-/** Viewers can read every floor they're granted, but never write. */
-export async function canWrite() {
+/**
+ * Whether the signed-in user can edit `targetRole`'s permission toggles on
+ * `floorId`. Owner can edit any role. Head can edit Manager or Staff on a
+ * floor they've been granted (Head is per-floor) — but never Head itself,
+ * to avoid a Head self-editing or peer-editing another floor's Head.
+ * Manager and Staff are never admins of this, regardless of target.
+ */
+export async function canManagePermissions(floorId: FloorId, targetRole: UserRole) {
   const profile = await getCurrentProfile();
-  return !!profile && profile.role !== "viewer";
+  if (!profile) return false;
+  if (profile.role === "owner") return true;
+  if (profile.role !== "head") return false;
+  if (targetRole !== "manager" && targetRole !== "staff") return false;
+  return canAccessFloor(floorId);
 }

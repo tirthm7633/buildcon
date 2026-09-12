@@ -33,9 +33,13 @@ function toFormValues(walkIn?: WalkIn): WalkInFormValues {
     name: walkIn?.name ?? "",
     phone: walkIn?.phone ?? "",
     whatsapp: walkIn?.whatsapp ?? "",
+    alternate_phone: walkIn?.alternate_phone ?? "",
     email: walkIn?.email ?? "",
     company_name: walkIn?.company_name ?? "",
     address: walkIn?.address ?? "",
+    city: walkIn?.city ?? "",
+    pincode: walkIn?.pincode ?? "",
+    referred_by: walkIn?.referred_by ?? "",
     source: walkIn?.source ?? "walk_in",
     category: walkIn?.category ?? "",
     requirements: walkIn?.requirements ?? "",
@@ -170,6 +174,20 @@ export function WalkInForm({
 
               <FormField
                 control={form.control}
+                name="alternate_phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Alternative phone (optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Backup contact number" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
                 name="email"
                 render={({ field }) => (
                   <FormItem>
@@ -201,9 +219,51 @@ export function WalkInForm({
                 name="address"
                 render={({ field }) => (
                   <FormItem className="sm:col-span-2">
-                    <FormLabel>Address / location</FormLabel>
+                    <FormLabel>Address</FormLabel>
                     <FormControl>
                       <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="city"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>City</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="pincode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Pincode (optional)</FormLabel>
+                    <FormControl>
+                      <Input inputMode="numeric" maxLength={6} placeholder="e.g. 380015" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="referred_by"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Reference (optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Name of who referred them" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -215,7 +275,7 @@ export function WalkInForm({
                 name="source"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Source</FormLabel>
+                    <FormLabel>Lead source</FormLabel>
                     <Select value={field.value} onValueChange={field.onChange}>
                       <FormControl>
                         <SelectTrigger className="w-full">
@@ -265,7 +325,7 @@ export function WalkInForm({
                 name="category"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Product interest</FormLabel>
+                    <FormLabel>Interested product</FormLabel>
                     <FormControl>
                       <Input placeholder="e.g. Vitrified tiles" {...field} />
                     </FormControl>
@@ -352,7 +412,7 @@ export function WalkInForm({
                 name="requirements"
                 render={({ field }) => (
                   <FormItem className="sm:col-span-2">
-                    <FormLabel>Requirements / notes</FormLabel>
+                    <FormLabel>Notes (optional)</FormLabel>
                     <FormControl>
                       <Textarea rows={3} {...field} />
                     </FormControl>

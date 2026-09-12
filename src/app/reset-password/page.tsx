@@ -10,7 +10,7 @@ export default async function ResetPasswordPage() {
     <div className="flex min-h-dvh items-center justify-center bg-primary/[0.03] px-4 py-12">
       <div className="w-full max-w-sm space-y-6">
         <div className="flex flex-col items-center gap-3 text-center">
-          <Logo variant="dark" companyName={branding.company_name} logoUrl={branding.logo_url} showWordmark={false} size={72} />
+          <Logo variant="dark" companyName={branding.company_name} logoUrl={branding.logo_url} showWordmark={false} size={56} />
         </div>
         <Card className="shadow-lg">
           <CardHeader>

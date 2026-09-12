@@ -5,7 +5,7 @@
 
 export type FloorId = "tiles" | "sanitary" | "kitchen" | "furniture";
 
-export type UserRole = "owner" | "floor_manager" | "sales_executive" | "accountant" | "viewer";
+export type UserRole = "owner" | "head" | "manager" | "staff";
 
 export type WalkinSource =
   | "walk_in"
@@ -77,6 +77,41 @@ export type Floor = {
   is_active: boolean;
 };
 
+/**
+ * Every sidebar page, gateable per floor per role. Adding a new page never
+ * needs a migration — just tag its nav-items.ts entry with a new key here
+ * and a `defaults` entry; role_permissions.permission_key is a free-text
+ * column with no matching check constraint.
+ */
+export type PageFeatureKey =
+  | "page.today"
+  | "page.walk_ins"
+  | "page.catalog"
+  | "page.customers"
+  | "page.payments"
+  | "page.payment_list"
+  | "page.purchases"
+  | "page.follow_ups"
+  | "page.quotations"
+  | "page.tile_orders"
+  | "page.notifications"
+  | "page.sales_data"
+  | "page.team"
+  | "page.settings";
+
+/** Well-known permission_key values used by the app. */
+export type PermissionKey = PageFeatureKey | "walk_ins.data_scope";
+
+export type RolePermission = {
+  id: string;
+  floor_id: FloorId;
+  role: UserRole;
+  permission_key: string;
+  value: boolean | "all" | "own";
+  updated_by: string | null;
+  updated_at: string;
+};
+
 export type Profile = {
   id: string;
   full_name: string;
@@ -119,9 +154,13 @@ export type WalkIn = {
   name: string;
   phone: string;
   whatsapp: string | null;
+  alternate_phone: string | null;
   email: string | null;
   company_name: string | null;
   address: string | null;
+  city: string | null;
+  pincode: string | null;
+  referred_by: string | null;
   source: WalkinSource;
   category: string | null;
   requirements: string | null;
@@ -403,6 +442,7 @@ export interface Database {
       floors: Table<Floor, "id" | "name" | "short_code" | "quotation_prefix">;
       profiles: Table<Profile, "id" | "full_name" | "email">;
       user_floor_access: Table<UserFloorAccess, "user_id" | "floor_id">;
+      role_permissions: Table<RolePermission, "floor_id" | "role" | "permission_key">;
       company_settings: Table<CompanySettings, never>;
       walk_ins: Table<WalkIn, "floor_id" | "name" | "phone">;
       customers: Table<Customer, "floor_id" | "name" | "phone">;

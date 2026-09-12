@@ -22,7 +22,7 @@ export type CompanySettingsFormValues = z.infer<typeof companySettingsSchema>;
 export const inviteStaffSchema = z.object({
   full_name: z.string().trim().min(2, "Name is required"),
   email: z.string().trim().email("Enter a valid email"),
-  role: z.enum(["owner", "floor_manager", "sales_executive", "accountant", "viewer"]),
+  role: z.enum(["owner", "head", "manager", "staff"]),
   phone: z.string().trim().optional().or(z.literal("")),
   floor_ids: z.array(z.enum(["tiles", "sanitary", "kitchen", "furniture"])),
 });
