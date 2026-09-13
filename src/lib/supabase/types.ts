@@ -78,9 +78,9 @@ export type Floor = {
 };
 
 /**
- * Every sidebar page, gateable per floor per role. Adding a new page never
+ * Every sidebar page, gateable per floor per person. Adding a new page never
  * needs a migration — just tag its nav-items.ts entry with a new key here
- * and a `defaults` entry; role_permissions.permission_key is a free-text
+ * and a `defaults` entry; user_permissions.permission_key is a free-text
  * column with no matching check constraint.
  */
 export type PageFeatureKey =
@@ -102,10 +102,10 @@ export type PageFeatureKey =
 /** Well-known permission_key values used by the app. */
 export type PermissionKey = PageFeatureKey | "walk_ins.data_scope";
 
-export type RolePermission = {
+export type UserPermission = {
   id: string;
+  user_id: string;
   floor_id: FloorId;
-  role: UserRole;
   permission_key: string;
   value: boolean | "all" | "own";
   updated_by: string | null;
@@ -442,7 +442,7 @@ export interface Database {
       floors: Table<Floor, "id" | "name" | "short_code" | "quotation_prefix">;
       profiles: Table<Profile, "id" | "full_name" | "email">;
       user_floor_access: Table<UserFloorAccess, "user_id" | "floor_id">;
-      role_permissions: Table<RolePermission, "floor_id" | "role" | "permission_key">;
+      user_permissions: Table<UserPermission, "user_id" | "floor_id" | "permission_key">;
       company_settings: Table<CompanySettings, never>;
       walk_ins: Table<WalkIn, "floor_id" | "name" | "phone">;
       customers: Table<Customer, "floor_id" | "name" | "phone">;

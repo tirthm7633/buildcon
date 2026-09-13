@@ -18,7 +18,7 @@ import { FileText, IndianRupee, Package, Wallet } from "lucide-react";
 export default async function CustomerDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { profile, floor } = await requireFloor((f) => f.modules.customers);
-  await requirePageAccess(floor, profile.role, "page.customers");
+  await requirePageAccess(floor, profile, "page.customers");
 
   const supabase = await createClient();
 

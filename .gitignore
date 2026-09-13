@@ -37,6 +37,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# supabase CLI local state
+supabase/.temp
+
 # local scratch/debug files
 /scratch
 

@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getAccessibleFloorIds, getCurrentProfile } from "@/lib/auth";
 import { getActiveFloorId } from "@/lib/floor-context";
 import { getFloorConfig } from "@/lib/floors";
-import { disabledKeysForRole, getRolePermissions } from "@/lib/permissions";
+import { disabledKeysForUser, getUserPermissions } from "@/lib/permissions";
 import { createClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
@@ -25,13 +25,14 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const floorConfig = getFloorConfig(floorId ?? "tiles");
   const logoUrl = settings?.logo_url ?? null;
 
-  // Generic across every role: Owner is never gated (and never fetched for),
-  // everyone else is resolved from role_permissions with each nav item's own
-  // coded default filling in whatever hasn't been explicitly toggled yet.
+  // Generic across every role: Owner is never gated (and never fetched for).
+  // Everyone else is resolved from THEIR OWN user_permissions row, with
+  // each nav item's own role-shaped coded default filling in whatever
+  // hasn't been explicitly toggled for this specific person yet.
   let disabledPages: string[] = [];
   if (floorId && profile.role !== "owner") {
-    const map = await getRolePermissions(floorId, profile.role);
-    disabledPages = disabledKeysForRole(floorConfig, profile.role, map);
+    const map = await getUserPermissions(floorId, profile.id);
+    disabledPages = disabledKeysForUser(floorConfig, profile.role, map);
   }
 
   if (!floorId) {

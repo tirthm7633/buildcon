@@ -1,23 +1,29 @@
 "use client";
 
 import { useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 
-import { setStaffActive, setStaffFloorAccess, updateStaffRole } from "@/lib/actions/settings";
+import { setStaffActive, updateStaffRole } from "@/lib/actions/settings";
 import { USER_ROLES } from "@/lib/constants";
 import { initials } from "@/lib/format";
 import { FLOORS } from "@/lib/floors";
 import type { FloorId, Profile, UserRole } from "@/lib/supabase/types";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 
 export interface StaffRow extends Profile {
   floorIds: FloorId[];
 }
+
+const FLOOR_LABEL: Record<FloorId, string> = Object.fromEntries(FLOORS.map((f) => [f.id, f.shortLabel])) as Record<
+  FloorId,
+  string
+>;
 
 export function TeamTable({ staff, currentUserId }: { staff: StaffRow[]; currentUserId: string }) {
   const router = useRouter();
@@ -26,18 +32,6 @@ export function TeamTable({ staff, currentUserId }: { staff: StaffRow[]; current
   function changeRole(userId: string, role: UserRole) {
     startTransition(async () => {
       const result = await updateStaffRole(userId, role);
-      if (result.error) {
-        toast.error(result.error);
-        return;
-      }
-      router.refresh();
-    });
-  }
-
-  function toggleFloor(userId: string, current: FloorId[], floorId: FloorId, checked: boolean) {
-    const next = checked ? [...current, floorId] : current.filter((f) => f !== floorId);
-    startTransition(async () => {
-      const result = await setStaffFloorAccess(userId, next);
       if (result.error) {
         toast.error(result.error);
         return;
@@ -66,13 +60,14 @@ export function TeamTable({ staff, currentUserId }: { staff: StaffRow[]; current
             <th className="p-3">Role</th>
             <th className="p-3">Floor access</th>
             <th className="p-3">Active</th>
+            <th className="p-3" />
           </tr>
         </thead>
         <tbody>
           {staff.map((member) => (
             <tr key={member.id} className="border-b border-border last:border-0 align-top">
               <td className="p-3">
-                <div className="flex items-center gap-2.5">
+                <Link href={`/team/${member.id}`} className="flex items-center gap-2.5 hover:underline">
                   <Avatar className="size-8">
                     <AvatarFallback className="bg-primary text-xs font-semibold text-primary-foreground">
                       {initials(member.full_name)}
@@ -82,7 +77,7 @@ export function TeamTable({ staff, currentUserId }: { staff: StaffRow[]; current
                     <p className="font-medium text-foreground">{member.full_name}</p>
                     <p className="text-xs text-muted-foreground">{member.email}</p>
                   </div>
-                </div>
+                </Link>
               </td>
               <td className="p-3">
                 {member.role === "owner" ? (
@@ -109,19 +104,16 @@ export function TeamTable({ staff, currentUserId }: { staff: StaffRow[]; current
               <td className="p-3">
                 {member.role === "owner" ? (
                   <span className="text-xs text-muted-foreground">All floors</span>
-                ) : (
-                  <div className="flex flex-wrap gap-3">
-                    {FLOORS.map((floor) => (
-                      <label key={floor.id} className="flex items-center gap-1.5 text-xs">
-                        <Checkbox
-                          checked={member.floorIds.includes(floor.id)}
-                          disabled={isPending}
-                          onCheckedChange={(checked) => toggleFloor(member.id, member.floorIds, floor.id, !!checked)}
-                        />
-                        {floor.shortLabel}
-                      </label>
+                ) : member.floorIds.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {member.floorIds.map((id) => (
+                      <Badge key={id} variant="outline" className="text-xs font-normal">
+                        {FLOOR_LABEL[id]}
+                      </Badge>
                     ))}
                   </div>
+                ) : (
+                  <span className="text-xs text-muted-foreground">No floors yet</span>
                 )}
               </td>
               <td className="p-3">
@@ -130,6 +122,15 @@ export function TeamTable({ staff, currentUserId }: { staff: StaffRow[]; current
                   disabled={isPending || member.id === currentUserId}
                   onCheckedChange={(checked) => toggleActive(member.id, checked)}
                 />
+              </td>
+              <td className="p-3 text-right">
+                <Link
+                  href={`/team/${member.id}`}
+                  className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                >
+                  Manage access
+                  <ChevronRight className="size-3.5" />
+                </Link>
               </td>
             </tr>
           ))}

@@ -7,7 +7,7 @@ import { FollowUpsWorkspace } from "@/components/follow-ups/follow-ups-workspace
 
 export default async function FollowUpsPage() {
   const { profile, floor } = await requireFloor((f) => f.modules.followUps);
-  await requirePageAccess(floor, profile.role, "page.follow_ups");
+  await requirePageAccess(floor, profile, "page.follow_ups");
 
   const supabase = await createClient();
 

@@ -10,7 +10,7 @@ import { CustomersTable } from "@/components/customers/customers-table";
 
 export default async function CustomersPage() {
   const { profile, floor } = await requireFloor((f) => f.modules.customers);
-  await requirePageAccess(floor, profile.role, "page.customers");
+  await requirePageAccess(floor, profile, "page.customers");
 
   const supabase = await createClient();
 

@@ -2,9 +2,6 @@ import { z } from "zod";
 
 const FLOOR_ID = z.enum(["tiles", "sanitary", "kitchen", "furniture"]);
 
-/** Never "owner" — Owner is never a gate-able target, only ever an editor. */
-const GATABLE_ROLE = z.enum(["head", "manager", "staff"]);
-
 const PAGE_FEATURE_KEY = z.enum([
   "page.today",
   "page.walk_ins",
@@ -22,18 +19,27 @@ const PAGE_FEATURE_KEY = z.enum([
   "page.settings",
 ]);
 
-export const setFeaturePermissionSchema = z.object({
+export const setUserFeaturePermissionSchema = z.object({
+  userId: z.string().uuid(),
   floorId: FLOOR_ID,
-  role: GATABLE_ROLE,
   key: PAGE_FEATURE_KEY,
   enabled: z.boolean(),
 });
 
-export type SetFeaturePermissionValues = z.infer<typeof setFeaturePermissionSchema>;
+export type SetUserFeaturePermissionValues = z.infer<typeof setUserFeaturePermissionSchema>;
 
-export const setWalkInsDataScopeSchema = z.object({
+export const setUserWalkInsDataScopeSchema = z.object({
+  userId: z.string().uuid(),
   floorId: FLOOR_ID,
   scope: z.enum(["all", "own"]),
 });
 
-export type SetWalkInsDataScopeValues = z.infer<typeof setWalkInsDataScopeSchema>;
+export type SetUserWalkInsDataScopeValues = z.infer<typeof setUserWalkInsDataScopeSchema>;
+
+export const setUserFloorAccessSchema = z.object({
+  userId: z.string().uuid(),
+  floorId: FLOOR_ID,
+  enabled: z.boolean(),
+});
+
+export type SetUserFloorAccessValues = z.infer<typeof setUserFloorAccessSchema>;

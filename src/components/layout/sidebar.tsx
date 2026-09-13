@@ -39,7 +39,7 @@ export function Sidebar({
       )}
     >
       <div className={cn("flex h-16 items-center gap-2 border-b border-sidebar-border px-4", collapsed && "justify-center px-2")}>
-        {!collapsed ? <Logo logoUrl={logoUrl} variant="light" showWordmark={false} size={32} className="flex-1" /> : null}
+        {!collapsed ? <Logo logoUrl={logoUrl} variant="light" showWordmark={false} height={32} className="flex-1" /> : null}
         <button
           type="button"
           onClick={() => setCollapsed((v) => !v)}

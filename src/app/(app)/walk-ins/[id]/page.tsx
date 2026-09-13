@@ -17,7 +17,7 @@ import { WalkInQuickActions } from "@/components/walk-ins/walk-in-quick-actions"
 export default async function WalkInDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { profile, floor } = await requireFloor();
-  await requirePageAccess(floor, profile.role, "page.walk_ins");
+  await requirePageAccess(floor, profile, "page.walk_ins");
 
   const supabase = await createClient();
 

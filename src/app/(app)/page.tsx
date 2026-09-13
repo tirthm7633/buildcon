@@ -5,7 +5,7 @@ import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { getCurrentProfile } from "@/lib/auth";
 import { getActiveFloorId } from "@/lib/floor-context";
 import { getFloorConfig } from "@/lib/floors";
-import { disabledKeysForRole, getRolePermissions } from "@/lib/permissions";
+import { disabledKeysForUser, getUserPermissions } from "@/lib/permissions";
 import { getTodayDashboardData } from "@/lib/queries/today";
 import { getFollowUpEntityHref } from "@/lib/follow-up-links";
 import { findLabel, FOLLOW_UP_TYPES } from "@/lib/constants";
@@ -23,10 +23,10 @@ export default async function TodayPage() {
 
   // Every other page redirects home when it's disabled — Today can't do
   // that to itself, so when Today is unavailable (module off, or toggled
-  // off for this role) it hands off to the first page that IS available,
+  // off for this person) it hands off to the first page that IS available,
   // falling back to a plain empty state if nothing is.
   const disabledKeys =
-    profile.role === "owner" ? [] : disabledKeysForRole(floor, profile.role, await getRolePermissions(floorId, profile.role));
+    profile.role === "owner" ? [] : disabledKeysForUser(floor, profile.role, await getUserPermissions(floorId, profile.id));
 
   if (!floor.modules.today || disabledKeys.includes("page.today")) {
     const nextItem = filterNavItemsByDisabledKeys(getNavItems(floor), disabledKeys)[0];

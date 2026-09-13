@@ -23,12 +23,12 @@ export interface NavItem {
   href: string;
   label: string;
   icon: LucideIcon;
-  /** role_permissions key gating this item — every item has one, since
-   * every page is individually toggleable per role. */
+  /** user_permissions key gating this item — every item has one, since
+   * every page is individually toggleable per person. */
   permissionKey: PageFeatureKey;
-  /** Access when no role_permissions row overrides it yet, per gated role.
-   * A role not listed here (e.g. Head, until it gets its own spec) defaults
-   * to full access — see resolveFeatureAccess in lib/permissions.ts. */
+  /** Coded fallback when a person has no explicit user_permissions row for
+   * this key yet, keyed by their role. A role not listed here (e.g. Head)
+   * defaults to full access — see resolveFeatureAccess in lib/permissions.ts. */
   defaults?: Partial<Record<UserRole, boolean>>;
 }
 

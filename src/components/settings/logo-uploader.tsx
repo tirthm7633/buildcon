@@ -40,14 +40,14 @@ export function LogoUploader({ logoUrl }: { logoUrl: string | null }) {
 
   return (
     <div className="flex items-center gap-4">
-      <Logo logoUrl={logoUrl} showWordmark={false} className="rounded-lg border border-border p-2" />
+      <Logo logoUrl={logoUrl} showWordmark={false} height={40} className="rounded-lg border border-border p-2" />
       <div>
         <Button type="button" variant="outline" size="sm" onClick={() => inputRef.current?.click()} disabled={isUploading}>
           {isUploading ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
           Upload logo
         </Button>
         <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={onFileSelected} />
-        <p className="mt-1.5 text-xs text-muted-foreground">PNG or SVG, square works best.</p>
+        <p className="mt-1.5 text-xs text-muted-foreground">PNG or JPG — any shape works, it&apos;s scaled to fit by height.</p>
       </div>
     </div>
   );

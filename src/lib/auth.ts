@@ -3,7 +3,7 @@ import { cache } from "react";
 
 import { createClient } from "@/lib/supabase/server";
 import { FLOORS } from "@/lib/floors";
-import type { FloorId, Profile, UserRole } from "@/lib/supabase/types";
+import type { FloorId, Profile } from "@/lib/supabase/types";
 
 export const getCurrentProfile = cache(async (): Promise<Profile | null> => {
   const supabase = await createClient();
@@ -22,9 +22,20 @@ export async function isOwner() {
   return profile?.role === "owner";
 }
 
-/** Owner or Manager — the two roles with unrestricted page access (Manager's
- * one carve-out, Sales Data, is enforced separately in role_permissions). */
+/** Owner, Manager, and Head can all reach the Team section — Owner and
+ * Manager see everyone, Head sees people sharing a floor with them (see
+ * getManagedTeamMembers). Sales Data's Manager carve-out is unrelated,
+ * enforced separately via nav-items.ts defaults. */
 export async function canManageTeam() {
+  const profile = await getCurrentProfile();
+  return profile?.role === "owner" || profile?.role === "manager" || profile?.role === "head";
+}
+
+/** Narrower than canManageTeam — role changes, active/inactive status, and
+ * inviting new people stay Owner/Manager only. Head's new capability is
+ * scoped to floor access and feature permissions (see canManagePermissions),
+ * not identity or membership changes. */
+export async function canManageRoleAndStatus() {
   const profile = await getCurrentProfile();
   return profile?.role === "owner" || profile?.role === "manager";
 }
@@ -45,17 +56,51 @@ export async function canAccessFloor(floorId: FloorId) {
 }
 
 /**
- * Whether the signed-in user can edit `targetRole`'s permission toggles on
- * `floorId`. Owner can edit any role. Head can edit Manager or Staff on a
- * floor they've been granted (Head is per-floor) — but never Head itself,
- * to avoid a Head self-editing or peer-editing another floor's Head.
- * Manager and Staff are never admins of this, regardless of target.
+ * Whether the signed-in user can edit `targetUserId`'s permissions on
+ * `floorId` — both floor access itself and feature toggles within a floor
+ * they already have. Owner can edit anyone. Head can edit a Staff or
+ * Manager on a floor the Head themselves has access to — canAccessFloor
+ * is inherently "a floor I have access to", so this can't reach outside
+ * the Head's own floors — but never another Head or Owner, to avoid a
+ * Head self-editing or peer-editing. Manager and Staff are never admins
+ * of this, regardless of target.
  */
-export async function canManagePermissions(floorId: FloorId, targetRole: UserRole) {
+export async function canManagePermissions(floorId: FloorId, targetUserId: string) {
   const profile = await getCurrentProfile();
   if (!profile) return false;
   if (profile.role === "owner") return true;
   if (profile.role !== "head") return false;
-  if (targetRole !== "manager" && targetRole !== "staff") return false;
-  return canAccessFloor(floorId);
+  if (!(await canAccessFloor(floorId))) return false;
+
+  const supabase = await createClient();
+  const { data: target } = await supabase.from("profiles").select("role").eq("id", targetUserId).single();
+  return target?.role === "manager" || target?.role === "staff";
+}
+
+/**
+ * People this viewer can see/manage on the Team section. Owner and Manager
+ * see everyone. Head sees only Staff/Manager who share at least one floor
+ * with them — not the whole company, and never another Head or Owner.
+ */
+export async function getManagedTeamMemberIds(): Promise<"all" | string[]> {
+  const profile = await getCurrentProfile();
+  if (!profile) return [];
+  if (profile.role === "owner" || profile.role === "manager") return "all";
+  if (profile.role !== "head") return [];
+
+  const headFloors = await getAccessibleFloorIds();
+  if (headFloors.length === 0) return [];
+
+  const supabase = await createClient();
+  const { data: access } = await supabase.from("user_floor_access").select("user_id").in("floor_id", headFloors);
+  const candidateIds = [...new Set((access ?? []).map((row) => row.user_id))];
+  if (candidateIds.length === 0) return [];
+
+  const { data: eligible } = await supabase
+    .from("profiles")
+    .select("id")
+    .in("id", candidateIds)
+    .in("role", ["staff", "manager"]);
+
+  return (eligible ?? []).map((row) => row.id);
 }

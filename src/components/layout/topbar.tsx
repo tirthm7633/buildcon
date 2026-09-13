@@ -37,13 +37,13 @@ export function Topbar({
       <Button variant="ghost" size="icon" onClick={() => setOpen(true)} aria-label="Open menu">
         <Menu className="size-5" />
       </Button>
-      <Logo logoUrl={logoUrl} variant="dark" showWordmark={false} size={32} className="flex-1" />
+      <Logo logoUrl={logoUrl} variant="dark" showWordmark={false} height={32} className="flex-1" />
 
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="left" className="w-72 bg-sidebar p-0">
           <SheetHeader className="h-16 flex-row items-center border-b border-sidebar-border px-5">
             <SheetTitle>
-              <Logo logoUrl={logoUrl} variant="light" showWordmark={false} size={32} />
+              <Logo logoUrl={logoUrl} variant="light" showWordmark={false} height={32} />
             </SheetTitle>
           </SheetHeader>
           <div className="flex h-[calc(100%-4rem)] flex-col gap-3 overflow-y-auto px-3 py-3">

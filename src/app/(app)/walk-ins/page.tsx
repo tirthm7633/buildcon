@@ -11,7 +11,7 @@ import type { WalkInRow } from "@/components/walk-ins/walk-in-columns";
 
 export default async function WalkInsPage() {
   const { profile, floor } = await requireFloor();
-  await requirePageAccess(floor, profile.role, "page.walk_ins");
+  await requirePageAccess(floor, profile, "page.walk_ins");
 
   const supabase = await createClient();
 

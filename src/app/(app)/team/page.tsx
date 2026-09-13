@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-import { canManageTeam, getCurrentProfile } from "@/lib/auth";
+import { canManageTeam, getCurrentProfile, getManagedTeamMemberIds } from "@/lib/auth";
 import { getActiveFloorId } from "@/lib/floor-context";
 import { getFloorConfig } from "@/lib/floors";
 import { requirePageAccess } from "@/lib/permissions";
@@ -17,11 +17,26 @@ export default async function TeamPage() {
   // Team itself isn't floor-scoped data, but its page-visibility toggle is
   // — same as every other page — so it's checked against the active floor.
   const floor = getFloorConfig(await getActiveFloorId());
-  await requirePageAccess(floor, profile.role, "page.team");
+  await requirePageAccess(floor, profile, "page.team");
+
+  const managedIds = await getManagedTeamMemberIds();
 
   const supabase = await createClient();
+  let profilesQuery = supabase.from("profiles").select("*").order("created_at");
+  if (managedIds !== "all") {
+    if (managedIds.length === 0) {
+      // Head with no Staff/Manager sharing any of their floors yet.
+      return (
+        <div>
+          <PageHeader title="Team" description="No one on your floors yet." />
+        </div>
+      );
+    }
+    profilesQuery = profilesQuery.in("id", managedIds);
+  }
+
   const [{ data: staff }, { data: access }] = await Promise.all([
-    supabase.from("profiles").select("*").order("created_at"),
+    profilesQuery,
     supabase.from("user_floor_access").select("*"),
   ]);
 
@@ -39,8 +54,8 @@ export default async function TeamPage() {
     <div>
       <PageHeader
         title="Team"
-        description="Invite staff, assign roles, and control which floors they can see."
-        actions={<InviteStaffForm />}
+        description="Invite people, assign roles, and open a profile to control their floor access and permissions."
+        actions={managedIds === "all" ? <InviteStaffForm /> : null}
       />
       <TeamTable staff={rows} currentUserId={profile.id} />
     </div>
