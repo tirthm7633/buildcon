@@ -5,11 +5,12 @@ import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { getCurrentProfile } from "@/lib/auth";
 import { getActiveFloorId } from "@/lib/floor-context";
 import { getFloorConfig } from "@/lib/floors";
-import { getStaffPermissions, resolvePagePermission } from "@/lib/permissions";
+import { disabledKeysForRole, getRolePermissions } from "@/lib/permissions";
 import { getTodayDashboardData } from "@/lib/queries/today";
 import { getFollowUpEntityHref } from "@/lib/follow-up-links";
 import { findLabel, FOLLOW_UP_TYPES } from "@/lib/constants";
 import { formatDateTime, formatINRCompact } from "@/lib/format";
+import { filterNavItemsByDisabledKeys, getNavItems } from "@/components/layout/nav-items";
 import { Button } from "@/components/ui/button";
 import { TodaySummaryPanel } from "@/components/today/today-summary-panel";
 
@@ -20,12 +21,27 @@ export default async function TodayPage() {
   const floorId = await getActiveFloorId();
   const floor = getFloorConfig(floorId);
 
-  if (!floor.modules.today) {
-    redirect("/walk-ins");
-  }
+  // Every other page redirects home when it's disabled — Today can't do
+  // that to itself, so when Today is unavailable (module off, or toggled
+  // off for this role) it hands off to the first page that IS available,
+  // falling back to a plain empty state if nothing is.
+  const disabledKeys =
+    profile.role === "owner" ? [] : disabledKeysForRole(floor, profile.role, await getRolePermissions(floorId, profile.role));
 
-  if (profile.role === "staff" && !resolvePagePermission(await getStaffPermissions(floorId), "page.today")) {
-    redirect("/walk-ins");
+  if (!floor.modules.today || disabledKeys.includes("page.today")) {
+    const nextItem = filterNavItemsByDisabledKeys(getNavItems(floor), disabledKeys)[0];
+    if (nextItem) redirect(nextItem.href);
+
+    return (
+      <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border py-16 text-center">
+        <CheckCircle2 className="size-8 text-muted-foreground/60" strokeWidth={1.25} />
+        <p className="font-heading text-lg text-foreground">Nothing available yet</p>
+        <p className="max-w-sm text-sm text-muted-foreground">
+          Every page on this floor is currently switched off for your role. Ask an owner or head to enable one from
+          Settings.
+        </p>
+      </div>
+    );
   }
 
   const data = await getTodayDashboardData(floorId, profile);

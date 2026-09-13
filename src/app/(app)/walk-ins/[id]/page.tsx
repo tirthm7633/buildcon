@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 
-import { getStaffPermissions, resolvePagePermission } from "@/lib/permissions";
+import { requirePageAccess } from "@/lib/permissions";
 import { requireFloor } from "@/lib/require-floor";
 import { createClient } from "@/lib/supabase/server";
 import { findBadgeClass, findLabel, WALKIN_SOURCES, WALKIN_STATUSES } from "@/lib/constants";
@@ -17,10 +17,7 @@ import { WalkInQuickActions } from "@/components/walk-ins/walk-in-quick-actions"
 export default async function WalkInDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { profile, floor } = await requireFloor();
-
-  if (profile.role === "staff" && !resolvePagePermission(await getStaffPermissions(floor.id), "page.walk_ins")) {
-    redirect("/");
-  }
+  await requirePageAccess(floor, profile.role, "page.walk_ins");
 
   const supabase = await createClient();
 

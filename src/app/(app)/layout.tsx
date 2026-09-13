@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getAccessibleFloorIds, getCurrentProfile } from "@/lib/auth";
 import { getActiveFloorId } from "@/lib/floor-context";
 import { getFloorConfig } from "@/lib/floors";
-import { disabledManagerPageKeys, disabledPageKeys, getRolePermissions } from "@/lib/permissions";
+import { disabledKeysForRole, getRolePermissions } from "@/lib/permissions";
 import { createClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
@@ -25,13 +25,13 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const floorConfig = getFloorConfig(floorId ?? "tiles");
   const logoUrl = settings?.logo_url ?? null;
 
-  // Staff: gated by their 4 toggleable pages. Manager: fixed Sales Data
-  // restriction only. Head/Owner: never gated, always full access.
+  // Generic across every role: Owner is never gated (and never fetched for),
+  // everyone else is resolved from role_permissions with each nav item's own
+  // coded default filling in whatever hasn't been explicitly toggled yet.
   let disabledPages: string[] = [];
-  if (floorId && profile.role === "staff") {
-    disabledPages = disabledPageKeys(await getRolePermissions(floorId, "staff"));
-  } else if (floorId && profile.role === "manager") {
-    disabledPages = disabledManagerPageKeys(await getRolePermissions(floorId, "manager"));
+  if (floorId && profile.role !== "owner") {
+    const map = await getRolePermissions(floorId, profile.role);
+    disabledPages = disabledKeysForRole(floorConfig, profile.role, map);
   }
 
   if (!floorId) {

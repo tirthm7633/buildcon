@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
 
 import { canManageTeam, getCurrentProfile } from "@/lib/auth";
+import { getActiveFloorId } from "@/lib/floor-context";
+import { getFloorConfig } from "@/lib/floors";
+import { requirePageAccess } from "@/lib/permissions";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/shared/page-header";
 import { InviteStaffForm } from "@/components/settings/invite-staff-form";
@@ -8,7 +11,13 @@ import { TeamTable, type StaffRow } from "@/components/settings/team-table";
 
 export default async function TeamPage() {
   const profile = await getCurrentProfile();
+  if (!profile) redirect("/login");
   if (!(await canManageTeam())) redirect("/");
+
+  // Team itself isn't floor-scoped data, but its page-visibility toggle is
+  // — same as every other page — so it's checked against the active floor.
+  const floor = getFloorConfig(await getActiveFloorId());
+  await requirePageAccess(floor, profile.role, "page.team");
 
   const supabase = await createClient();
   const [{ data: staff }, { data: access }] = await Promise.all([
@@ -33,7 +42,7 @@ export default async function TeamPage() {
         description="Invite staff, assign roles, and control which floors they can see."
         actions={<InviteStaffForm />}
       />
-      <TeamTable staff={rows} currentUserId={profile!.id} />
+      <TeamTable staff={rows} currentUserId={profile.id} />
     </div>
   );
 }

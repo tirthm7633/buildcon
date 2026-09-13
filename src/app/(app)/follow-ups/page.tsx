@@ -1,3 +1,4 @@
+import { requirePageAccess } from "@/lib/permissions";
 import { requireFloor } from "@/lib/require-floor";
 import { getFollowUpsForFloor } from "@/lib/queries/follow-ups";
 import { createClient } from "@/lib/supabase/server";
@@ -5,7 +6,9 @@ import { PageHeader } from "@/components/shared/page-header";
 import { FollowUpsWorkspace } from "@/components/follow-ups/follow-ups-workspace";
 
 export default async function FollowUpsPage() {
-  const { floor } = await requireFloor((f) => f.modules.followUps);
+  const { profile, floor } = await requireFloor((f) => f.modules.followUps);
+  await requirePageAccess(floor, profile.role, "page.follow_ups");
+
   const supabase = await createClient();
 
   const [followUps, { data: staff }] = await Promise.all([

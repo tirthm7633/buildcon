@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { requirePageAccess } from "@/lib/permissions";
 import { requireFloor } from "@/lib/require-floor";
 import { createClient } from "@/lib/supabase/server";
 import { findBadgeClass, findLabel, QUOTATION_STATUSES } from "@/lib/constants";
@@ -16,7 +17,9 @@ import { FileText, IndianRupee, Package, Wallet } from "lucide-react";
 
 export default async function CustomerDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { floor } = await requireFloor((f) => f.modules.customers);
+  const { profile, floor } = await requireFloor((f) => f.modules.customers);
+  await requirePageAccess(floor, profile.role, "page.customers");
+
   const supabase = await createClient();
 
   const { data: customer } = await supabase.from("customers").select("*").eq("id", id).eq("floor_id", floor.id).single();

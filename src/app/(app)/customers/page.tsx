@@ -1,5 +1,6 @@
 import { Plus } from "lucide-react";
 
+import { requirePageAccess } from "@/lib/permissions";
 import { requireFloor } from "@/lib/require-floor";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/shared/page-header";
@@ -8,7 +9,9 @@ import { CustomerForm } from "@/components/customers/customer-form";
 import { CustomersTable } from "@/components/customers/customers-table";
 
 export default async function CustomersPage() {
-  const { floor } = await requireFloor((f) => f.modules.customers);
+  const { profile, floor } = await requireFloor((f) => f.modules.customers);
+  await requirePageAccess(floor, profile.role, "page.customers");
+
   const supabase = await createClient();
 
   const { data: customers } = await supabase
