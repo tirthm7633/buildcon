@@ -76,17 +76,17 @@ const styles = StyleSheet.create({
   signatureLine: { fontSize: 7, fontFamily: "Helvetica-Bold", borderTopWidth: 1, borderTopColor: "#2b241d", paddingTop: 3, width: 200, textAlign: "center" },
   footer: { position: "absolute", bottom: 20, left: 32, right: 32, flexDirection: "row", justifyContent: "space-between", borderTopWidth: 1, borderTopColor: "#e8e1d4", paddingTop: 6, fontSize: 7, color: "#79705f" },
   table: { borderWidth: 1, borderColor: "#e8e1d4" },
-  tableHeaderRow: { flexDirection: "row", backgroundColor: "#f1ece3" },
-  tableRow: { flexDirection: "row", borderTopWidth: 1, borderTopColor: "#e8e1d4" },
-  th: { padding: 5, fontSize: 7, fontFamily: "Helvetica-Bold", textAlign: "center" },
-  td: { padding: 5, fontSize: 8, justifyContent: "center" },
-  colSr: { width: "6%" },
-  colImg: { width: "14%", alignItems: "center" },
-  colArea: { width: "16%" },
-  colDetail: { width: "38%" },
-  colSize: { width: "13%" },
+  tableHeaderRow: { flexDirection: "row", alignItems: "center", backgroundColor: "#f1ece3", borderBottomWidth: 1, borderBottomColor: "#d8cfc0" },
+  tableRow: { flexDirection: "row", alignItems: "center", borderTopWidth: 0.5, borderTopColor: "#e3dccd" },
+  th: { paddingVertical: 6, paddingHorizontal: 5, fontSize: 8.5, fontFamily: "Helvetica-Bold", color: "#4a4237", letterSpacing: 0.3 },
+  td: { paddingVertical: 6, paddingHorizontal: 5, fontSize: 8, lineHeight: 1.3 },
+  colSr: { width: "6%", textAlign: "center" },
+  colImg: { width: "14%", alignItems: "center", justifyContent: "center", textAlign: "center" },
+  colArea: { width: "16%", textAlign: "left" },
+  colDetail: { width: "38%", textAlign: "left" },
+  colSize: { width: "13%", textAlign: "right" },
   colRate: { width: "13%", textAlign: "right" },
-  productImage: { width: 30, height: 30, objectFit: "cover" },
+  productImage: { width: 28, height: 28, objectFit: "cover", borderRadius: 2 },
 });
 
 function PdfLogo({ logoUrl, companyName }: { logoUrl: string | null; companyName: string }) {
@@ -243,7 +243,7 @@ export function SelectionPdfDocument({
           </View>
           {items.map((item, i) => (
             <View key={item.id} style={styles.tableRow}>
-              <Text style={[styles.td, styles.colSr, { textAlign: "center" }]}>{i + 1}</Text>
+              <Text style={[styles.td, styles.colSr]}>{i + 1}</Text>
               <View style={[styles.td, styles.colImg]}>
                 {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf's Image is a PDF primitive, not an HTML img */}
                 {item.imageUrl ? <Image src={item.imageUrl} style={styles.productImage} /> : null}

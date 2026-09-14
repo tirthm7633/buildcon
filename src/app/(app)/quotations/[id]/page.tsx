@@ -26,7 +26,7 @@ export default async function SelectionDetailPage({ params }: { params: Promise<
     supabase.from("user_floor_access").select("user_id").eq("floor_id", floor.id),
     supabase
       .from("quotation_items")
-      .select("*, catalogue_items(size, catalogue_images(url, position))")
+      .select("*, catalogue_items(catalogue_images(url, position), catalogue_item_sizes(id, size, rate, position))")
       .eq("quotation_id", id)
       .order("position"),
     supabase.from("company_settings").select("*").eq("id", true).single(),
@@ -42,12 +42,13 @@ export default async function SelectionDetailPage({ params }: { params: Promise<
 
   const items: SelectionItemRow[] = (itemsRaw ?? []).map(({ catalogue_items, ...item }) => {
     const catalogueItem = catalogue_items as unknown as {
-      size: string | null;
       catalogue_images: { url: string; position: number }[] | null;
+      catalogue_item_sizes: { id: string; size: string; rate: number; position: number }[] | null;
     } | null;
     const images = catalogueItem?.catalogue_images ?? [];
     const sorted = [...images].sort((a, b) => a.position - b.position);
-    return { ...item, size: catalogueItem?.size ?? null, imageUrl: sorted[0]?.url ?? null };
+    const sizeOptions = (catalogueItem?.catalogue_item_sizes ?? []).slice().sort((a, b) => a.position - b.position);
+    return { ...item, imageUrl: sorted[0]?.url ?? null, sizeOptions };
   });
 
   const editable = quotation.status === "draft";

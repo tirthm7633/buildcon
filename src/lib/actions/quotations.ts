@@ -84,6 +84,7 @@ export async function addSelectionItem(quotationId: string, values: unknown, pos
       catalogue_item_id: parsed.data.catalogue_item_id,
       description: parsed.data.description,
       section: parsed.data.section || null,
+      size: parsed.data.size || null,
       rate: parsed.data.rate,
       unit: "sq.ft",
       position,
@@ -108,6 +109,7 @@ export async function updateSelectionItem(itemId: string, quotationId: string, v
       catalogue_item_id: parsed.data.catalogue_item_id,
       description: parsed.data.description,
       section: parsed.data.section || null,
+      size: parsed.data.size || null,
       rate: parsed.data.rate,
     })
     .eq("id", itemId);

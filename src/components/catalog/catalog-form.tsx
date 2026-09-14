@@ -2,15 +2,15 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Upload } from "lucide-react";
+import { Loader2, Plus, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 
 import { createCatalogItem, updateCatalogItem } from "@/lib/actions/catalog";
 import { catalogItemSchema, type CatalogItemFormValues } from "@/lib/validations/catalog";
 import { createClient } from "@/lib/supabase/client";
-import type { CatalogueItem } from "@/lib/supabase/types";
+import type { CatalogueItem, CatalogueItemSize } from "@/lib/supabase/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -23,26 +23,29 @@ import {
 } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 
-function toFormValues(item?: CatalogueItem, imageUrl?: string | null): CatalogItemFormValues {
+function toFormValues(item?: CatalogueItem, sizes?: CatalogueItemSize[], imageUrl?: string | null): CatalogItemFormValues {
   return {
     name: item?.name ?? "",
     sku: item?.sku ?? "",
     brand: item?.brand ?? "",
     category: item?.category ?? "",
-    size: item?.size ?? "",
     unit: item?.unit ?? "sq.ft",
-    selling_price: item?.selling_price ?? 0,
     gst_rate: item?.gst_rate ?? 18,
     image_url: imageUrl ?? "",
+    sizes: sizes?.length
+      ? sizes.map((s) => ({ size: s.size, sku: s.sku ?? "", rate: s.rate }))
+      : [{ size: "", sku: "", rate: 0 }],
   };
 }
 
 export function CatalogForm({
   item,
+  sizes,
   imageUrl,
   trigger,
 }: {
   item?: CatalogueItem;
+  sizes?: CatalogueItemSize[];
   imageUrl?: string | null;
   trigger: React.ReactNode;
 }) {
@@ -55,13 +58,14 @@ export function CatalogForm({
 
   const form = useForm<CatalogItemFormValues>({
     resolver: zodResolver(catalogItemSchema),
-    defaultValues: toFormValues(item, imageUrl),
+    defaultValues: toFormValues(item, sizes, imageUrl),
   });
+  const sizeFields = useFieldArray({ control: form.control, name: "sizes" });
 
   function onOpenChange(next: boolean) {
     setOpen(next);
     if (next) {
-      form.reset(toFormValues(item, imageUrl));
+      form.reset(toFormValues(item, sizes, imageUrl));
       setPreviewUrl(imageUrl ?? "");
     }
   }
@@ -179,43 +183,12 @@ export function CatalogForm({
               />
               <FormField
                 control={form.control}
-                name="size"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Size (optional)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g. 600x600mm" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
                 name="unit"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Unit</FormLabel>
                     <FormControl>
                       <Input placeholder="sq.ft" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="selling_price"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Rate / sq.ft (₹)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        {...field}
-                        onChange={(e) => field.onChange(e.target.value === "" ? 0 : Number(e.target.value))}
-                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -239,6 +212,69 @@ export function CatalogForm({
                   </FormItem>
                 )}
               />
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <FormLabel>Sizes &amp; rates</FormLabel>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => sizeFields.append({ size: "", sku: "", rate: 0 })}
+                >
+                  <Plus className="size-4" />
+                  Add another size
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Add one row per size this design comes in — e.g. 600x600mm and 800x800mm at different rates.
+              </p>
+
+              {sizeFields.fields.map((sizeField, index) => (
+                <div key={sizeField.id} className="grid grid-cols-[1fr_1fr_auto] items-start gap-2">
+                  <FormField
+                    control={form.control}
+                    name={`sizes.${index}.size`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <Input placeholder="e.g. 600x600mm" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name={`sizes.${index}.rate`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="Rate / sq.ft"
+                            {...field}
+                            onChange={(e) => field.onChange(e.target.value === "" ? 0 : Number(e.target.value))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="mt-0.5"
+                    onClick={() => sizeFields.remove(index)}
+                    disabled={sizeFields.fields.length === 1}
+                  >
+                    <Trash2 className="size-4 text-destructive" />
+                  </Button>
+                </div>
+              ))}
             </div>
 
             <DialogFooter>

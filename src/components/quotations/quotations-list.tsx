@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FileText } from "lucide-react";
 
+import { cn } from "@/lib/utils";
 import { formatINR } from "@/lib/format";
 import { EmptyState } from "@/components/shared/empty-state";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -43,16 +44,16 @@ export function QuotationsList({ rows }: { rows: QuotationListRow[] }) {
       </Tabs>
 
       {shown.length ? (
-        <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="w-full text-sm">
+        <div className="rounded-lg border border-border">
+          <table className="w-full table-fixed text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/50 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                <th className="p-3">No.</th>
-                <th className="p-3">Customer</th>
-                <th className="p-3">Phone</th>
-                <th className="p-3">Status</th>
-                <th className="p-3 text-right">Amount</th>
-                <th className="p-3">Date</th>
+                <th className="w-[18%] p-3 sm:w-[15%]">No.</th>
+                <th className="w-[32%] p-3 sm:w-[22%]">Customer</th>
+                <th className="hidden p-3 lg:table-cell lg:w-[15%]">Phone</th>
+                <th className="w-[26%] p-3 sm:w-[18%]">Status</th>
+                <th className="w-[24%] p-3 text-right sm:w-[15%]">Amount</th>
+                <th className="hidden p-3 lg:table-cell lg:w-[15%]">Date</th>
               </tr>
             </thead>
             <tbody>
@@ -70,14 +71,14 @@ export function QuotationsList({ rows }: { rows: QuotationListRow[] }) {
                   }}
                   className="cursor-pointer border-b border-border last:border-0 hover:bg-muted/30 focus-visible:bg-muted/30 focus-visible:outline-none"
                 >
-                  <td className="p-3 font-mono text-xs font-medium text-foreground">{row.quotation_number}</td>
-                  <td className="p-3 text-foreground">{row.customer_name || "—"}</td>
-                  <td className="p-3 text-muted-foreground">{row.customer_phone || "—"}</td>
+                  <td className="truncate p-3 font-mono text-xs font-medium text-foreground">{row.quotation_number}</td>
+                  <td className="truncate p-3 text-foreground">{row.customer_name || "—"}</td>
+                  <td className="hidden p-3 text-muted-foreground lg:table-cell">{row.customer_phone || "—"}</td>
                   <td className="p-3">
-                    <StatusBadge label={row.statusLabel} className={row.statusClass} />
+                    <StatusBadge label={row.statusLabel} className={cn(row.statusClass, "h-auto w-fit max-w-full whitespace-normal text-center leading-tight")} />
                   </td>
                   <td className="p-3 text-right font-medium tabular-nums text-foreground">{formatINR(row.total)}</td>
-                  <td className="p-3 text-muted-foreground">{row.issueDateLabel}</td>
+                  <td className="hidden p-3 text-muted-foreground lg:table-cell">{row.issueDateLabel}</td>
                 </tr>
               ))}
             </tbody>

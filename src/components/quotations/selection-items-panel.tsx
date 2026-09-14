@@ -11,12 +11,27 @@ import { formatINR } from "@/lib/format";
 import type { FloorId, QuotationItem } from "@/lib/supabase/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchPicker } from "@/components/shared/search-picker";
+
+type SizeOption = { id: string; size: string; rate: number };
 
 export interface SelectionItemRow extends QuotationItem {
   imageUrl: string | null;
-  size: string | null;
+  /** Every size option the underlying catalog design currently has — used
+   * to power the size dropdown. A row keeps its own size/rate snapshot
+   * regardless of what this list says, so it still renders sensibly even
+   * if the catalog item was later deleted (empty array) or changed. */
+  sizeOptions: SizeOption[];
 }
+
+type PendingProduct = {
+  catalogue_item_id: string;
+  description: string;
+  imageUrl: string | null;
+  sizes: SizeOption[];
+  selectedSizeId: string | null;
+};
 
 export function SelectionItemsPanel({
   quotationId,
@@ -32,24 +47,21 @@ export function SelectionItemsPanel({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [adding, setAdding] = useState(false);
-  const [pendingProduct, setPendingProduct] = useState<{
-    catalogue_item_id: string;
-    description: string;
-    rate: number;
-    size: string | null;
-    imageUrl: string | null;
-  } | null>(null);
+  const [pendingProduct, setPendingProduct] = useState<PendingProduct | null>(null);
   const [area, setArea] = useState("");
 
+  const selectedSize = pendingProduct?.sizes.find((s) => s.id === pendingProduct.selectedSizeId) ?? null;
+
   function confirmAdd() {
-    if (!pendingProduct) return;
+    if (!pendingProduct || !selectedSize) return;
     startTransition(async () => {
       const result = await addSelectionItem(
         quotationId,
         {
           catalogue_item_id: pendingProduct.catalogue_item_id,
           description: pendingProduct.description,
-          rate: pendingProduct.rate,
+          rate: selectedSize.rate,
+          size: selectedSize.size,
           section: area,
         },
         items.length
@@ -72,9 +84,29 @@ export function SelectionItemsPanel({
         catalogue_item_id: item.catalogue_item_id,
         description: item.description,
         rate: item.rate,
+        size: item.size,
         section: nextArea,
       });
       if (result.error) toast.error(result.error);
+      router.refresh();
+    });
+  }
+
+  function changeSize(item: SelectionItemRow, sizeOption: SizeOption) {
+    if (sizeOption.size === item.size) return;
+    startTransition(async () => {
+      const result = await updateSelectionItem(item.id, quotationId, {
+        catalogue_item_id: item.catalogue_item_id,
+        description: item.description,
+        rate: sizeOption.rate,
+        size: sizeOption.size,
+        section: item.section ?? "",
+      });
+      if (result.error) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success(`Size changed to ${sizeOption.size} — rate updated to ${formatINR(sizeOption.rate)}/sq.ft`);
       router.refresh();
     });
   }
@@ -131,7 +163,27 @@ export function SelectionItemsPanel({
                 )}
               </td>
               <td className="p-3 text-foreground">{item.description}</td>
-              <td className="p-3 text-muted-foreground">{item.size ?? "—"}</td>
+              <td className="p-3 text-muted-foreground">
+                {editable && item.sizeOptions.length > 1 ? (
+                  <Select value={item.size ?? undefined} onValueChange={(v) => {
+                    const opt = item.sizeOptions.find((s) => s.size === v);
+                    if (opt) changeSize(item, opt);
+                  }}>
+                    <SelectTrigger className="h-8 w-28 text-sm">
+                      <SelectValue placeholder="Size" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {item.sizeOptions.map((s) => (
+                        <SelectItem key={s.id} value={s.size}>
+                          {s.size}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  (item.size ?? "—")
+                )}
+              </td>
               <td className="p-3 text-right text-foreground">{formatINR(item.rate)}</td>
               {editable ? (
                 <td className="p-3 text-right">
@@ -150,24 +202,48 @@ export function SelectionItemsPanel({
           {adding ? (
             <div className="space-y-3">
               {pendingProduct ? (
-                <div className="flex items-center gap-3 rounded-md border border-border p-2">
-                  <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
-                    {pendingProduct.imageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={pendingProduct.imageUrl} alt="" className="size-full object-cover" />
-                    ) : (
-                      <Package className="size-4 text-muted-foreground" />
-                    )}
+                <div className="space-y-2 rounded-md border border-border p-2">
+                  <div className="flex items-center gap-3">
+                    <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
+                      {pendingProduct.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={pendingProduct.imageUrl} alt="" className="size-full object-cover" />
+                      ) : (
+                        <Package className="size-4 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{pendingProduct.description}</p>
+                      {selectedSize ? (
+                        <p className="text-xs text-muted-foreground">
+                          {selectedSize.size} · {formatINR(selectedSize.rate)}/sq.ft
+                        </p>
+                      ) : (
+                        <p className="text-xs text-amber-600">Select a size below</p>
+                      )}
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={() => setPendingProduct(null)}>
+                      Change
+                    </Button>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{pendingProduct.description}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {pendingProduct.size ?? "—"} · {formatINR(pendingProduct.rate)}/sq.ft
-                    </p>
-                  </div>
-                  <Button variant="ghost" size="sm" onClick={() => setPendingProduct(null)}>
-                    Change
-                  </Button>
+
+                  {pendingProduct.sizes.length > 1 ? (
+                    <Select
+                      value={pendingProduct.selectedSizeId ?? undefined}
+                      onValueChange={(v) => setPendingProduct({ ...pendingProduct, selectedSizeId: v })}
+                    >
+                      <SelectTrigger className="h-9 w-full">
+                        <SelectValue placeholder="Choose a size" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {pendingProduct.sizes.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.size} — {formatINR(s.rate)}/sq.ft
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : null}
                 </div>
               ) : (
                 <SearchPicker
@@ -178,7 +254,12 @@ export function SelectionItemsPanel({
                     <div>
                       <p className="font-medium text-foreground">{p.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {p.sku} · {p.size ?? "—"} · {formatINR(p.selling_price)}/{p.unit}
+                        {p.sku} ·{" "}
+                        {p.sizes.length > 1
+                          ? `${p.sizes.length} sizes, from ${formatINR(Math.min(...p.sizes.map((s) => s.rate)))}/${p.unit}`
+                          : p.sizes.length === 1
+                            ? `${p.sizes[0].size} · ${formatINR(p.sizes[0].rate)}/${p.unit}`
+                            : "No sizes set up"}
                       </p>
                     </div>
                   )}
@@ -186,9 +267,9 @@ export function SelectionItemsPanel({
                     setPendingProduct({
                       catalogue_item_id: p.id,
                       description: p.name,
-                      rate: p.selling_price,
-                      size: p.size,
                       imageUrl: p.imageUrl,
+                      sizes: p.sizes,
+                      selectedSizeId: p.sizes.length === 1 ? p.sizes[0].id : null,
                     })
                   }
                 />
@@ -201,7 +282,7 @@ export function SelectionItemsPanel({
                   placeholder="Area, e.g. Living Room"
                   className="h-9"
                 />
-                <Button size="sm" onClick={confirmAdd} disabled={!pendingProduct || isPending}>
+                <Button size="sm" onClick={confirmAdd} disabled={!selectedSize || isPending}>
                   {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
                   Add
                 </Button>

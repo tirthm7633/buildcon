@@ -220,7 +220,6 @@ export type CatalogueItem = {
   brand: string | null;
   collection: string | null;
   category: string | null;
-  size: string | null;
   finish: string | null;
   colour: string | null;
   material: string | null;
@@ -228,7 +227,6 @@ export type CatalogueItem = {
   unit: string;
   pieces_per_box: number | null;
   coverage_per_box: number | null;
-  selling_price: number;
   dealer_price: number | null;
   gst_rate: number;
   stock_quantity: number | null;
@@ -241,6 +239,18 @@ export type CatalogueImage = {
   id: string;
   catalogue_item_id: string;
   url: string;
+  position: number;
+  created_at: string;
+};
+
+/** One priced size option for a catalog design — a design with only one
+ * size still has exactly one row here, not a null/empty case to special-case. */
+export type CatalogueItemSize = {
+  id: string;
+  catalogue_item_id: string;
+  size: string;
+  sku: string | null;
+  rate: number;
   position: number;
   created_at: string;
 };
@@ -292,6 +302,9 @@ export type QuotationItem = {
   position: number;
   section: string | null;
   description: string;
+  /** Editable snapshot of the chosen size — like description/rate, not a
+   * live join, so it stays intact even if the catalog design's sizes change. */
+  size: string | null;
   unit: string;
   quantity: number;
   rate: number;
@@ -465,6 +478,7 @@ export interface Database {
       activities: Table<Activity, "floor_id" | "entity_type" | "entity_id" | "action">;
       catalogue_items: Table<CatalogueItem, "floor_id" | "sku" | "name">;
       catalogue_images: Table<CatalogueImage, "catalogue_item_id" | "url">;
+      catalogue_item_sizes: Table<CatalogueItemSize, "catalogue_item_id" | "size" | "rate">;
       quotations: Table<Quotation, "floor_id" | "quotation_number" | "customer_name" | "customer_phone">;
       quotation_items: Table<QuotationItem, "quotation_id" | "description">;
       tile_orders: Table<TileOrder, "floor_id" | "order_number" | "customer_id">;
