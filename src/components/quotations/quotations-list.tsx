@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FileText } from "lucide-react";
 
+import { formatINR } from "@/lib/format";
 import { EmptyState } from "@/components/shared/empty-state";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,12 +15,14 @@ export interface QuotationListRow {
   customer_name: string;
   customer_phone: string;
   status: string;
+  total: number;
   statusLabel: string;
   statusClass: string;
   issueDateLabel: string;
 }
 
 export function QuotationsList({ rows }: { rows: QuotationListRow[] }) {
+  const router = useRouter();
   const [tab, setTab] = useState<"selections" | "quotations">("selections");
 
   const selections = useMemo(() => rows.filter((r) => r.status === "draft"), [rows]);
@@ -40,7 +43,7 @@ export function QuotationsList({ rows }: { rows: QuotationListRow[] }) {
       </Tabs>
 
       {shown.length ? (
-        <div className="overflow-hidden rounded-lg border border-border">
+        <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/50 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -48,22 +51,32 @@ export function QuotationsList({ rows }: { rows: QuotationListRow[] }) {
                 <th className="p-3">Customer</th>
                 <th className="p-3">Phone</th>
                 <th className="p-3">Status</th>
+                <th className="p-3 text-right">Amount</th>
                 <th className="p-3">Date</th>
               </tr>
             </thead>
             <tbody>
               {shown.map((row) => (
-                <tr key={row.id} className="border-b border-border last:border-0 hover:bg-muted/30">
-                  <td className="p-3">
-                    <Link href={`/quotations/${row.id}`} className="font-mono text-xs font-medium text-foreground hover:underline">
-                      {row.quotation_number}
-                    </Link>
-                  </td>
+                <tr
+                  key={row.id}
+                  tabIndex={0}
+                  role="link"
+                  onClick={() => router.push(`/quotations/${row.id}`)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      router.push(`/quotations/${row.id}`);
+                    }
+                  }}
+                  className="cursor-pointer border-b border-border last:border-0 hover:bg-muted/30 focus-visible:bg-muted/30 focus-visible:outline-none"
+                >
+                  <td className="p-3 font-mono text-xs font-medium text-foreground">{row.quotation_number}</td>
                   <td className="p-3 text-foreground">{row.customer_name || "—"}</td>
                   <td className="p-3 text-muted-foreground">{row.customer_phone || "—"}</td>
                   <td className="p-3">
                     <StatusBadge label={row.statusLabel} className={row.statusClass} />
                   </td>
+                  <td className="p-3 text-right font-medium tabular-nums text-foreground">{formatINR(row.total)}</td>
                   <td className="p-3 text-muted-foreground">{row.issueDateLabel}</td>
                 </tr>
               ))}

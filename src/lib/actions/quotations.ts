@@ -19,11 +19,13 @@ function cleanHeader(values: SelectionHeaderValues) {
   };
 }
 
-/** Creates a Selection — a quotations row in status 'draft'. Reserves a
- * real quotation number immediately (the same per-floor sequence already
- * used everywhere else) since "Selection/Quotation No." is one number for
- * the document's whole lifecycle, not reissued when it's later approved. */
-export async function createSelection(values: SelectionHeaderValues) {
+/** Creates a Selection — a quotations row in status 'draft' — or, when
+ * `startAsQuotation` is set, the same row starting directly at
+ * 'awaiting_approval' for a customer who doesn't need the Selection stage.
+ * Either way reserves a real quotation number immediately (the same
+ * per-floor sequence used everywhere else) since "Selection/Quotation No."
+ * is one number for the document's whole lifecycle, not reissued later. */
+export async function createSelection(values: SelectionHeaderValues, startAsQuotation = false) {
   const parsed = selectionHeaderSchema.safeParse(values);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
 
@@ -46,6 +48,7 @@ export async function createSelection(values: SelectionHeaderValues) {
       floor_id: floorId,
       quotation_number: numberData as string,
       created_by: profile.id,
+      ...(startAsQuotation ? { status: "awaiting_approval" as const } : {}),
     })
     .select("id")
     .single();

@@ -4,7 +4,14 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/shared/page-header";
 import { NewSelectionClient } from "@/components/quotations/new-selection-client";
 
-export default async function NewSelectionPage() {
+export default async function NewSelectionPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ type?: string }>;
+}) {
+  const { type } = await searchParams;
+  const startAsQuotation = type === "quotation";
+
   const { profile, floor } = await requireFloor((f) => Boolean(f.modules.quotationsLabel));
   await requirePageAccess(floor, profile, "page.quotations");
 
@@ -19,8 +26,15 @@ export default async function NewSelectionPage() {
 
   return (
     <div className="max-w-2xl">
-      <PageHeader title="New selection" description="Capture the customer and start shortlisting products." />
-      <NewSelectionClient floorId={floor.id} currentProfile={profile} headManagers={headManagers} />
+      <PageHeader
+        title={startAsQuotation ? "New quotation" : "New selection"}
+        description={
+          startAsQuotation
+            ? "Capture the customer and go straight to a quotation, skipping the selection stage."
+            : "Capture the customer and start shortlisting products."
+        }
+      />
+      <NewSelectionClient floorId={floor.id} currentProfile={profile} headManagers={headManagers} startAsQuotation={startAsQuotation} />
     </div>
   );
 }

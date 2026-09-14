@@ -9,10 +9,12 @@ export function NewSelectionClient({
   floorId,
   currentProfile,
   headManagers,
+  startAsQuotation = false,
 }: {
   floorId: FloorId;
   currentProfile: Pick<Profile, "id" | "full_name">;
   headManagers: Profile[];
+  startAsQuotation?: boolean;
 }) {
   const router = useRouter();
 
@@ -21,7 +23,8 @@ export function NewSelectionClient({
       floorId={floorId}
       currentProfile={currentProfile}
       headManagers={headManagers}
-      submitLabel="Create selection"
+      submitLabel={startAsQuotation ? "Create quotation" : "Create selection"}
+      startAsQuotation={startAsQuotation}
       onSuccess={(id) => router.push(`/quotations/${id}`)}
     />
   );

@@ -34,6 +34,7 @@ export function SelectionHeaderForm({
   headManagers,
   onSuccess,
   submitLabel,
+  startAsQuotation = false,
 }: {
   quotation?: Quotation;
   floorId: FloorId;
@@ -42,6 +43,7 @@ export function SelectionHeaderForm({
   headManagers: Profile[];
   onSuccess: (id: string) => void;
   submitLabel: string;
+  startAsQuotation?: boolean;
 }) {
   const form = useForm<SelectionHeaderValues>({
     resolver: zodResolver(selectionHeaderSchema),
@@ -61,12 +63,12 @@ export function SelectionHeaderForm({
       return;
     }
 
-    const result = await createSelection(values);
+    const result = await createSelection(values, startAsQuotation);
     if (result.error || !result.id) {
       toast.error(result.error ?? "Something went wrong");
       return;
     }
-    toast.success("Selection created");
+    toast.success(startAsQuotation ? "Quotation created" : "Selection created");
     onSuccess(result.id);
   }
 
