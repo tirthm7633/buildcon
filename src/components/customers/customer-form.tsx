@@ -9,10 +9,12 @@ import { toast } from "sonner";
 
 import { createCustomer, updateCustomer } from "@/lib/actions/customers";
 import { customerSchema, type CustomerFormValues } from "@/lib/validations/customer";
+import { CUSTOMER_TIERS } from "@/lib/constants";
 import type { Customer } from "@/lib/supabase/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -28,23 +30,28 @@ function toFormValues(customer?: Customer): CustomerFormValues {
   return {
     name: customer?.name ?? "",
     phone: customer?.phone ?? "",
-    whatsapp: customer?.whatsapp ?? "",
     email: customer?.email ?? "",
     company_name: customer?.company_name ?? "",
     address: customer?.address ?? "",
     delivery_location: customer?.delivery_location ?? "",
     gstin: customer?.gstin ?? "",
     notes: customer?.notes ?? "",
+    tier: customer?.tier ?? "retail",
   };
 }
 
 export function CustomerForm({
   customer,
+  canEditTier,
   trigger,
   open: openProp,
   onOpenChange: onOpenChangeProp,
 }: {
   customer?: Customer;
+  /** Only Owner, or the Head of this floor, may set tier — everyone else
+   * sees it as read-only context. The server actions re-check this too
+   * (via a DB trigger), this only controls whether the control is live. */
+  canEditTier: boolean;
   trigger?: React.ReactNode;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -118,13 +125,27 @@ export function CustomerForm({
               />
               <FormField
                 control={form.control}
-                name="whatsapp"
+                name="tier"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>WhatsApp</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
+                    <FormLabel>Tier</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange} disabled={!canEditTier}>
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {CUSTOMER_TIERS.map((t) => (
+                          <SelectItem key={t.value} value={t.value}>
+                            {t.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {!canEditTier ? (
+                      <p className="text-xs text-muted-foreground">Only the owner or a Head of this floor can change tier.</p>
+                    ) : null}
                     <FormMessage />
                   </FormItem>
                 )}

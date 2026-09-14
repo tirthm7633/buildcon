@@ -11,7 +11,6 @@ import { walkInSchema, type WalkInFormValues } from "@/lib/validations/walk-in";
 function clean(values: WalkInFormValues) {
   return {
     ...values,
-    whatsapp: values.whatsapp || null,
     alternate_phone: values.alternate_phone || null,
     email: values.email || null,
     company_name: values.company_name || null,
@@ -24,14 +23,13 @@ function clean(values: WalkInFormValues) {
     budget_estimate: values.budget_estimate ?? null,
     expected_purchase_date: values.expected_purchase_date || null,
     follow_up_at: values.follow_up_at ? new Date(values.follow_up_at).toISOString() : null,
-    assigned_to: values.assigned_to || null,
+    attended_by: values.attended_by === "none" ? null : values.attended_by,
   };
 }
 
-export async function findDuplicateWalkIns(floorId: FloorId, phone: string, whatsapp?: string, email?: string) {
+export async function findDuplicateWalkIns(floorId: FloorId, phone: string, email?: string) {
   const supabase = await createClient();
   const filters = [`phone.eq.${phone}`];
-  if (whatsapp) filters.push(`whatsapp.eq.${whatsapp}`);
   if (email) filters.push(`email.eq.${email}`);
 
   const { data } = await supabase
@@ -118,7 +116,13 @@ export async function deleteWalkIn(id: string) {
   return { error: null };
 }
 
-export async function convertWalkInToCustomer(walkInId: string) {
+/**
+ * The one "convert" action for a walk-in: creates the customer record (if
+ * one doesn't already exist) and marks the walk-in won, together — doing
+ * these as two separate steps used to let someone mark a walk-in won
+ * without ever creating the customer it's supposed to represent.
+ */
+export async function markWalkInConverted(walkInId: string) {
   const profile = await getCurrentProfile();
   if (!profile) return { error: "You must be signed in." };
 
@@ -130,38 +134,54 @@ export async function convertWalkInToCustomer(walkInId: string) {
     .single();
 
   if (walkInError || !walkIn) return { error: walkInError?.message ?? "Walk-in not found" };
-  if (walkIn.customer_id) return { error: null, id: walkIn.customer_id as string };
 
-  const { data: customer, error } = await supabase
-    .from("customers")
-    .insert({
+  let customerId = walkIn.customer_id;
+  if (!customerId) {
+    const { data: customer, error } = await supabase
+      .from("customers")
+      .insert({
+        floor_id: walkIn.floor_id,
+        name: walkIn.name,
+        phone: walkIn.phone,
+        whatsapp: walkIn.whatsapp,
+        email: walkIn.email,
+        company_name: walkIn.company_name,
+        address: walkIn.address,
+        created_by: profile.id,
+      })
+      .select("id")
+      .single();
+
+    if (error) return { error: error.message };
+    customerId = customer.id;
+
+    await supabase.from("activities").insert({
       floor_id: walkIn.floor_id,
-      name: walkIn.name,
-      phone: walkIn.phone,
-      whatsapp: walkIn.whatsapp,
-      email: walkIn.email,
-      company_name: walkIn.company_name,
-      address: walkIn.address,
-      created_by: profile.id,
-    })
-    .select("id")
-    .single();
+      entity_type: "customer",
+      entity_id: customerId,
+      actor_id: profile.id,
+      action: "converted_from_walkin",
+    });
+  }
 
-  if (error) return { error: error.message };
-
-  await supabase.from("walk_ins").update({ customer_id: customer.id }).eq("id", walkInId);
-  await supabase.from("activities").insert({
-    floor_id: walkIn.floor_id,
-    entity_type: "customer",
-    entity_id: customer.id,
-    actor_id: profile.id,
-    action: "converted_from_walkin",
-  });
+  await supabase.from("walk_ins").update({ customer_id: customerId, status: "won" }).eq("id", walkInId);
+  if (walkIn.status !== "won") {
+    await supabase.from("activities").insert({
+      floor_id: walkIn.floor_id,
+      entity_type: "walk_in",
+      entity_id: walkInId,
+      actor_id: profile.id,
+      action: "status_changed",
+      meta: { from: walkIn.status, to: "won" },
+    });
+  }
 
   revalidatePath("/walk-ins");
+  revalidatePath(`/walk-ins/${walkInId}`);
   revalidatePath("/customers");
-  return { error: null, id: customer.id as string };
+  return { error: null, id: customerId as string };
 }
+
 
 export async function addWalkInActivity(walkInId: string, floorId: FloorId, note: string) {
   const profile = await getCurrentProfile();

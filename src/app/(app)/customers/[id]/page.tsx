@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { canManageCustomerTier } from "@/lib/auth";
 import { requirePageAccess } from "@/lib/permissions";
 import { requireFloor } from "@/lib/require-floor";
 import { createClient } from "@/lib/supabase/server";
-import { findBadgeClass, findLabel, QUOTATION_STATUSES } from "@/lib/constants";
+import { CUSTOMER_TIERS, findBadgeClass, findLabel, QUOTATION_STATUSES } from "@/lib/constants";
 import { formatDate, formatINR } from "@/lib/format";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
@@ -13,6 +14,7 @@ import { ActivityTimeline } from "@/components/shared/activity-timeline";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CustomerForm } from "@/components/customers/customer-form";
+import { CustomerQuickActions } from "@/components/customers/customer-quick-actions";
 import { FileText, IndianRupee, Package, Wallet } from "lucide-react";
 
 export default async function CustomerDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -25,7 +27,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
   const { data: customer } = await supabase.from("customers").select("*").eq("id", id).eq("floor_id", floor.id).single();
   if (!customer) notFound();
 
-  const [{ data: walkIns }, { data: quotations }, { data: orders }, { data: payments }, { data: activities }] =
+  const [{ data: walkIns }, { data: quotations }, { data: orders }, { data: payments }, { data: activities }, canEditTier] =
     await Promise.all([
       supabase.from("walk_ins").select("id, name, status, created_at").eq("customer_id", id),
       supabase.from("quotations").select("*").eq("customer_id", id).order("created_at", { ascending: false }),
@@ -39,6 +41,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
         .eq("entity_type", "customer")
         .eq("entity_id", id)
         .order("created_at", { ascending: false }),
+      canManageCustomerTier(floor.id),
     ]);
 
   const totalQuoted = (quotations ?? []).reduce((sum, q) => sum + Number(q.total), 0);
@@ -59,8 +62,22 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
       <PageHeader
         title={customer.name}
         description={customer.company_name ?? customer.phone}
-        actions={<CustomerForm customer={customer} trigger={<Button variant="outline">Edit</Button>} />}
+        actions={
+          <div className="flex items-center gap-2">
+            <StatusBadge
+              label={findLabel(CUSTOMER_TIERS, customer.tier)}
+              className={findBadgeClass(CUSTOMER_TIERS, customer.tier)}
+            />
+            <CustomerForm
+              customer={customer}
+              canEditTier={canEditTier}
+              trigger={<Button variant="outline">Edit</Button>}
+            />
+          </div>
+        }
       />
+
+      <CustomerQuickActions customer={customer} />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Total quoted" value={formatINR(totalQuoted)} icon={FileText} />

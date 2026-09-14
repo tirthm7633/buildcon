@@ -3,7 +3,6 @@ import { z } from "zod";
 export const walkInSchema = z.object({
   name: z.string().trim().min(2, "Name is required"),
   phone: z.string().trim().min(10, "Enter a valid phone number").max(15, "Enter a valid phone number"),
-  whatsapp: z.string().trim().optional().or(z.literal("")),
   alternate_phone: z.string().trim().optional().or(z.literal("")),
   email: z.string().trim().email("Enter a valid email").optional().or(z.literal("")),
   company_name: z.string().trim().optional().or(z.literal("")),
@@ -32,7 +31,10 @@ export const walkInSchema = z.object({
     "lost",
   ]),
   follow_up_at: z.string().optional().or(z.literal("")),
-  assigned_to: z.string().uuid().optional().nullable(),
+  /** "none" or a Head/Manager's profile id — never empty. The Select has
+   * no default value on create, so an untouched field fails this and
+   * blocks submission, same as any other required field. */
+  attended_by: z.string().min(1, "Select who attended, or choose None"),
 });
 
 export type WalkInFormValues = z.infer<typeof walkInSchema>;

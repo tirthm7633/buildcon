@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { WalkInForm } from "@/components/walk-ins/walk-in-form";
 import { WalkInQuickActions } from "@/components/walk-ins/walk-in-quick-actions";
+import { WalkInDeleteButton } from "@/components/walk-ins/walk-in-delete-button";
 
 export default async function WalkInDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -24,22 +25,29 @@ export default async function WalkInDetailPage({ params }: { params: Promise<{ i
   const { data: walkIn } = await supabase.from("walk_ins").select("*").eq("id", id).eq("floor_id", floor.id).single();
   if (!walkIn) notFound();
 
-  const [{ data: staff }, { data: activities }, { data: followUps }, { data: quotations }] = await Promise.all([
-    supabase.from("profiles").select("*").eq("is_active", true).order("full_name"),
-    supabase
-      .from("activities")
-      .select("id, action, meta, created_at, profiles(full_name)")
-      .eq("entity_type", "walk_in")
-      .eq("entity_id", id)
-      .order("created_at", { ascending: false }),
-    supabase.from("follow_ups").select("*").eq("entity_type", "walk_in").eq("entity_id", id).order("due_at"),
-    walkIn.customer_id
-      ? supabase.from("quotations").select("id, quotation_number, status, total").eq("customer_id", walkIn.customer_id)
-      : Promise.resolve({ data: [] }),
-  ]);
+  const [{ data: staff }, { data: floorAccess }, { data: activities }, { data: followUps }, { data: quotations }] =
+    await Promise.all([
+      supabase.from("profiles").select("*").eq("is_active", true).order("full_name"),
+      supabase.from("user_floor_access").select("user_id").eq("floor_id", floor.id),
+      supabase
+        .from("activities")
+        .select("id, action, meta, created_at, profiles(full_name)")
+        .eq("entity_type", "walk_in")
+        .eq("entity_id", id)
+        .order("created_at", { ascending: false }),
+      supabase.from("follow_ups").select("*").eq("entity_type", "walk_in").eq("entity_id", id).order("due_at"),
+      walkIn.customer_id
+        ? supabase.from("quotations").select("id, quotation_number, status, total").eq("customer_id", walkIn.customer_id)
+        : Promise.resolve({ data: [] }),
+    ]);
 
   const staffList = staff ?? [];
-  const assignedProfile = staffList.find((s) => s.id === walkIn.assigned_to) ?? null;
+  const createdByProfile = staffList.find((s) => s.id === walkIn.created_by) ?? null;
+  const attendedByProfile = staffList.find((s) => s.id === walkIn.attended_by) ?? null;
+
+  // Same floor boundary as the Add Walk-in form — see walk-ins/page.tsx.
+  const accessibleIds = new Set((floorAccess ?? []).map((r) => r.user_id));
+  const headManagers = staffList.filter((p) => (p.role === "head" || p.role === "manager") && accessibleIds.has(p.id));
 
   const timelineEntries = (activities ?? []).map((a) => ({
     id: a.id,
@@ -53,7 +61,12 @@ export default async function WalkInDetailPage({ params }: { params: Promise<{ i
     <div className="space-y-6">
       <PageHeader
         title={walkIn.name}
-        description={walkIn.company_name ?? undefined}
+        description={
+          <>
+            <span className="font-mono">{walkIn.walk_in_number}</span>
+            {walkIn.company_name ? ` · ${walkIn.company_name}` : ""}
+          </>
+        }
         actions={
           <div className="flex items-center gap-2">
             <StatusBadge
@@ -63,9 +76,12 @@ export default async function WalkInDetailPage({ params }: { params: Promise<{ i
             <WalkInForm
               walkIn={walkIn}
               floorId={floor.id}
-              staff={staffList}
+              currentProfile={profile}
+              createdByName={createdByProfile?.full_name}
+              headManagers={headManagers}
               trigger={<Button variant="outline">Edit</Button>}
             />
+            <WalkInDeleteButton walkInId={walkIn.id} name={walkIn.name} />
           </div>
         }
       />
@@ -133,8 +149,12 @@ export default async function WalkInDetailPage({ params }: { params: Promise<{ i
                 </div>
               ) : null}
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Sales executive</span>
-                <span>{assignedProfile?.full_name ?? "Unassigned"}</span>
+                <span className="text-muted-foreground">Made by</span>
+                <span>{createdByProfile?.full_name ?? "—"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Attended by</span>
+                <span>{attendedByProfile?.full_name ?? "None"}</span>
               </div>
               {walkIn.requirements ? (
                 <div className="pt-2">

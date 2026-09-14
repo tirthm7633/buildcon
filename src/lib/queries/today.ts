@@ -170,20 +170,14 @@ export async function getTodayDashboardData(floorId: FloorId, profile: Profile) 
 
   const { data: pipelineQuotationsRaw } = await supabase
     .from("quotations")
-    .select("id, quotation_number, status, total, created_at, customer_id")
+    .select("id, quotation_number, status, total, created_at, customer_name")
     .eq("floor_id", floorId)
     .order("created_at", { ascending: false })
     .limit(6);
 
-  const pipelineCustomerIds = (pipelineQuotationsRaw ?? []).map((q) => q.customer_id);
-  const { data: pipelineCustomers } = pipelineCustomerIds.length
-    ? await supabase.from("customers").select("id, name").in("id", pipelineCustomerIds)
-    : { data: [] as { id: string; name: string }[] };
-  const pipelineCustomerNames = new Map((pipelineCustomers ?? []).map((c) => [c.id, c.name]));
-
   const pipelineQuotations = (pipelineQuotationsRaw ?? []).map((q) => ({
     ...q,
-    customers: { name: pipelineCustomerNames.get(q.customer_id) ?? "Unknown" },
+    customers: { name: q.customer_name || "Unknown" },
   }));
 
   return {

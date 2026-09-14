@@ -10,7 +10,6 @@ import { customerSchema, type CustomerFormValues } from "@/lib/validations/custo
 function clean(values: CustomerFormValues) {
   return {
     ...values,
-    whatsapp: values.whatsapp || null,
     email: values.email || null,
     company_name: values.company_name || null,
     address: values.address || null,

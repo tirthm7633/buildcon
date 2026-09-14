@@ -56,6 +56,22 @@ export async function canAccessFloor(floorId: FloorId) {
 }
 
 /**
+ * Whether the signed-in user can set a customer's tier (VIP/Trade/Retail)
+ * on `floorId`. Owner always can; Head only on a floor they themselves
+ * have access to; Manager and Staff never. This mirrors the DB-level
+ * guard on the customers table (see 0011_customer_tier.sql) — this
+ * function only drives whether the UI shows the control as editable, the
+ * trigger is the actual enforcement.
+ */
+export async function canManageCustomerTier(floorId: FloorId) {
+  const profile = await getCurrentProfile();
+  if (!profile) return false;
+  if (profile.role === "owner") return true;
+  if (profile.role !== "head") return false;
+  return canAccessFloor(floorId);
+}
+
+/**
  * Whether the signed-in user can edit `targetUserId`'s permissions on
  * `floorId` — both floor access itself and feature toggles within a floor
  * they already have. Owner can edit anyone. Head can edit a Staff or

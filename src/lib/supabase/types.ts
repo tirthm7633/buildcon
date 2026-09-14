@@ -7,6 +7,8 @@ export type FloorId = "tiles" | "sanitary" | "kitchen" | "furniture";
 
 export type UserRole = "owner" | "head" | "manager" | "staff";
 
+export type CustomerTier = "vip" | "trade" | "retail";
+
 export type WalkinSource =
   | "walk_in"
   | "referral"
@@ -150,6 +152,7 @@ export type CompanySettings = {
 
 export type WalkIn = {
   id: string;
+  walk_in_number: string;
   floor_id: FloorId;
   name: string;
   phone: string;
@@ -168,7 +171,9 @@ export type WalkIn = {
   expected_purchase_date: string | null;
   status: WalkinStatus;
   follow_up_at: string | null;
-  assigned_to: string | null;
+  /** Head or Manager who attended to this walk-in — never Staff. Who
+   * actually logged it is created_by, shown in the UI as "Made by". */
+  attended_by: string | null;
   customer_id: string | null;
   created_by: string | null;
   created_at: string;
@@ -187,6 +192,7 @@ export type Customer = {
   delivery_location: string | null;
   gstin: string | null;
   notes: string | null;
+  tier: CustomerTier;
   is_archived: boolean;
   created_by: string | null;
   created_at: string;
@@ -243,7 +249,15 @@ export type Quotation = {
   id: string;
   floor_id: FloorId;
   quotation_number: string;
-  customer_id: string;
+  /** Optional — a Selection can be started before the person is a formal
+   * Customer, same independence walk_ins already has. */
+  customer_id: string | null;
+  /** Editable snapshot printed on the document — prefilled from a picked
+   * Customer, but not locked to it. */
+  customer_name: string;
+  customer_phone: string;
+  customer_address: string | null;
+  reference: string | null;
   walk_in_id: string | null;
   status: QuotationStatus;
   version: number;
@@ -260,7 +274,9 @@ export type Quotation = {
   total: number;
   terms: string | null;
   notes: string | null;
-  sales_executive: string | null;
+  /** Head or Manager who attended to this Selection/Quotation — same
+   * floor-scoped concept as walk_ins.attended_by. */
+  attended_by: string | null;
   sent_at: string | null;
   viewed_at: string | null;
   decided_at: string | null;
@@ -449,7 +465,7 @@ export interface Database {
       activities: Table<Activity, "floor_id" | "entity_type" | "entity_id" | "action">;
       catalogue_items: Table<CatalogueItem, "floor_id" | "sku" | "name">;
       catalogue_images: Table<CatalogueImage, "catalogue_item_id" | "url">;
-      quotations: Table<Quotation, "floor_id" | "quotation_number" | "customer_id">;
+      quotations: Table<Quotation, "floor_id" | "quotation_number" | "customer_name" | "customer_phone">;
       quotation_items: Table<QuotationItem, "quotation_id" | "description">;
       tile_orders: Table<TileOrder, "floor_id" | "order_number" | "customer_id">;
       tile_order_items: Table<TileOrderItem, "tile_order_id" | "description">;
@@ -487,6 +503,7 @@ export interface Database {
     };
     Enums: {
       user_role: UserRole;
+      customer_tier: CustomerTier;
       walkin_source: WalkinSource;
       walkin_status: WalkinStatus;
       quotation_status: QuotationStatus;

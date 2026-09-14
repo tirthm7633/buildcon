@@ -1,4 +1,5 @@
 import type {
+  CustomerTier,
   DiscountType,
   FollowUpPriority,
   FollowUpType,
@@ -12,6 +13,13 @@ import type {
   WalkinStatus,
 } from "@/lib/supabase/types";
 
+/** Highest value first — matches how the tier filter tabs and badges order. */
+export const CUSTOMER_TIERS: { value: CustomerTier; label: string; badgeClass: string }[] = [
+  { value: "vip", label: "VIP", badgeClass: "bg-accent text-accent-foreground border-accent" },
+  { value: "trade", label: "Trade", badgeClass: "bg-sky-50 text-sky-700 border-sky-200" },
+  { value: "retail", label: "Retail", badgeClass: "bg-secondary text-secondary-foreground border-border" },
+];
+
 export const WALKIN_STATUSES: { value: WalkinStatus; label: string; badgeClass: string }[] = [
   { value: "new", label: "New", badgeClass: "bg-secondary text-secondary-foreground border-border" },
   { value: "contacted", label: "Contacted", badgeClass: "bg-sky-50 text-sky-700 border-sky-200" },
@@ -19,7 +27,7 @@ export const WALKIN_STATUSES: { value: WalkinStatus; label: string; badgeClass: 
   { value: "quotation_required", label: "Quotation Required", badgeClass: "bg-amber-50 text-amber-700 border-amber-200" },
   { value: "quotation_sent", label: "Quotation Sent", badgeClass: "bg-accent text-accent-foreground border-accent" },
   { value: "negotiation", label: "Negotiation", badgeClass: "bg-orange-50 text-orange-700 border-orange-200" },
-  { value: "won", label: "Won", badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  { value: "won", label: "Converted", badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200" },
   { value: "lost", label: "Lost", badgeClass: "bg-rose-50 text-rose-700 border-rose-200" },
 ];
 

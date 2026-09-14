@@ -2,10 +2,11 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, MessageCircle, Phone, Repeat, UserPlus, XCircle } from "lucide-react";
+import { CheckCircle2, MessageCircle, Phone, Repeat, Users, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
-import { addWalkInActivity, convertWalkInToCustomer, setWalkInStatus } from "@/lib/actions/walk-ins";
+import { addWalkInActivity, markWalkInConverted, setWalkInStatus } from "@/lib/actions/walk-ins";
+import { logContact } from "@/lib/actions/activity";
 import type { FloorId, Profile, WalkIn } from "@/lib/supabase/types";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,12 +19,15 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { FollowUpForm } from "@/components/follow-ups/follow-up-form";
+import { CallLink, WhatsAppLink } from "@/components/shared/contact-links";
 
 export function WalkInQuickActions({ walkIn, floorId, staff }: { walkIn: WalkIn; floorId: FloorId; staff: Profile[] }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [noteOpen, setNoteOpen] = useState(false);
   const [note, setNote] = useState("");
+  const [visitOpen, setVisitOpen] = useState(false);
+  const [visitNote, setVisitNote] = useState("");
 
   function saveNote() {
     if (!note.trim()) return;
@@ -40,26 +44,40 @@ export function WalkInQuickActions({ walkIn, floorId, staff }: { walkIn: WalkIn;
     });
   }
 
-  function convert() {
+  function logVisit() {
     startTransition(async () => {
-      const result = await convertWalkInToCustomer(walkIn.id);
+      const result = await logContact("walk_in", walkIn.id, floorId, "in_person", visitNote.trim() || undefined);
       if (result.error) {
         toast.error(result.error);
         return;
       }
-      toast.success("Converted to customer");
-      router.push(`/customers/${result.id}`);
+      setVisitNote("");
+      setVisitOpen(false);
+      toast.success("Visit logged");
+      router.refresh();
     });
   }
 
-  function markStatus(status: "won" | "lost" | "contacted") {
+  function convert() {
+    startTransition(async () => {
+      const result = await markWalkInConverted(walkIn.id);
+      if (result.error) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Marked as converted");
+      router.refresh();
+    });
+  }
+
+  function markStatus(status: "lost" | "contacted") {
     startTransition(async () => {
       const result = await setWalkInStatus(walkIn.id, status);
       if (result.error) {
         toast.error(result.error);
         return;
       }
-      toast.success(status === "won" ? "Marked as won" : "Marked as lost");
+      toast.success(status === "lost" ? "Marked as lost" : "Reopened");
       router.refresh();
     });
   }
@@ -67,17 +85,45 @@ export function WalkInQuickActions({ walkIn, floorId, staff }: { walkIn: WalkIn;
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Button variant="outline" size="sm" asChild>
-        <a href={`tel:${walkIn.phone}`}>
+        <CallLink entityType="walk_in" entityId={walkIn.id} floorId={floorId} phone={walkIn.phone}>
           <Phone className="size-4" />
           Call
-        </a>
+        </CallLink>
       </Button>
       <Button variant="outline" size="sm" asChild>
-        <a href={`https://wa.me/${(walkIn.whatsapp || walkIn.phone).replace(/\D/g, "")}`} target="_blank" rel="noreferrer">
+        <WhatsAppLink entityType="walk_in" entityId={walkIn.id} floorId={floorId} phone={walkIn.phone}>
           <MessageCircle className="size-4" />
           WhatsApp
-        </a>
+        </WhatsAppLink>
       </Button>
+
+      <Dialog open={visitOpen} onOpenChange={setVisitOpen}>
+        <DialogTrigger asChild>
+          <Button variant="outline" size="sm">
+            <Users className="size-4" />
+            Log in-person visit
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Log an in-person visit</DialogTitle>
+          </DialogHeader>
+          <Textarea
+            value={visitNote}
+            onChange={(e) => setVisitNote(e.target.value)}
+            rows={4}
+            placeholder="What was discussed… (optional)"
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setVisitOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={logVisit} disabled={isPending}>
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={noteOpen} onOpenChange={setNoteOpen}>
         <DialogTrigger asChild>
@@ -112,18 +158,11 @@ export function WalkInQuickActions({ walkIn, floorId, staff }: { walkIn: WalkIn;
         }
       />
 
-      {!walkIn.customer_id ? (
-        <Button variant="outline" size="sm" onClick={convert} disabled={isPending}>
-          <UserPlus className="size-4" />
-          Convert to customer
-        </Button>
-      ) : null}
-
       {!["won", "lost"].includes(walkIn.status) ? (
         <>
-          <Button size="sm" onClick={() => markStatus("won")} disabled={isPending}>
+          <Button size="sm" onClick={convert} disabled={isPending}>
             <CheckCircle2 className="size-4" />
-            Mark won
+            Mark converted
           </Button>
           <Button variant="outline" size="sm" onClick={() => markStatus("lost")} disabled={isPending}>
             <XCircle className="size-4" />

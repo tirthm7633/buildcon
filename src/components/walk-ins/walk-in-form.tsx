@@ -32,7 +32,6 @@ function toFormValues(walkIn?: WalkIn): WalkInFormValues {
   return {
     name: walkIn?.name ?? "",
     phone: walkIn?.phone ?? "",
-    whatsapp: walkIn?.whatsapp ?? "",
     alternate_phone: walkIn?.alternate_phone ?? "",
     email: walkIn?.email ?? "",
     company_name: walkIn?.company_name ?? "",
@@ -47,21 +46,33 @@ function toFormValues(walkIn?: WalkIn): WalkInFormValues {
     expected_purchase_date: walkIn?.expected_purchase_date ?? "",
     status: walkIn?.status ?? "new",
     follow_up_at: isoToISTInputValue(walkIn?.follow_up_at),
-    assigned_to: walkIn?.assigned_to ?? undefined,
+    // Editing an existing walk-in shows its current value (or "none") —
+    // already valid, no re-selection forced. Creating one starts blank so
+    // the required-field check actually makes the user choose.
+    attended_by: walkIn ? (walkIn.attended_by ?? "none") : "",
   };
 }
 
 export function WalkInForm({
   walkIn,
   floorId,
-  staff,
+  currentProfile,
+  createdByName,
+  headManagers,
   trigger,
   open: openProp,
   onOpenChange: onOpenChangeProp,
 }: {
   walkIn?: WalkIn;
   floorId: FloorId;
-  staff: Profile[];
+  /** Signed-in user — shown as "Made by" when creating a new walk-in. */
+  currentProfile: Pick<Profile, "id" | "full_name">;
+  /** Resolved name of the walk-in's actual creator — only meaningful (and
+   * only passed) when editing; ignored when creating. */
+  createdByName?: string | null;
+  /** Active Head/Manager accounts with access to this floor — the only
+   * people selectable as "Attended by". */
+  headManagers: Profile[];
   trigger?: React.ReactNode;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -88,9 +99,9 @@ export function WalkInForm({
 
   async function checkDuplicates() {
     if (walkIn) return;
-    const { phone, whatsapp, email } = form.getValues();
+    const { phone, email } = form.getValues();
     if (!phone || phone.length < 10) return;
-    const matches = await findDuplicateWalkIns(floorId, phone, whatsapp || undefined, email || undefined);
+    const matches = await findDuplicateWalkIns(floorId, phone, email || undefined);
     setDuplicates(matches);
   }
 
@@ -122,7 +133,7 @@ export function WalkInForm({
             <AlertTriangle className="size-4" />
             <AlertDescription className="text-accent-foreground">
               Possible duplicate: {duplicates.map((d) => d.name).join(", ")} already has a record with this
-              phone, WhatsApp or email.
+              phone or email.
             </AlertDescription>
           </Alert>
         ) : null}
@@ -152,20 +163,6 @@ export function WalkInForm({
                     <FormLabel>Phone</FormLabel>
                     <FormControl>
                       <Input placeholder="98765 43210" {...field} onBlur={checkDuplicates} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="whatsapp"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>WhatsApp</FormLabel>
-                    <FormControl>
-                      <Input placeholder="If different from phone" {...field} onBlur={checkDuplicates} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -381,21 +378,28 @@ export function WalkInForm({
                 )}
               />
 
+              <FormItem>
+                <FormLabel>Made by</FormLabel>
+                <p className="flex h-9 items-center text-sm text-muted-foreground">
+                  {walkIn ? (createdByName ?? "Unknown") : currentProfile.full_name}
+                </p>
+              </FormItem>
+
               <FormField
                 control={form.control}
-                name="assigned_to"
+                name="attended_by"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Sales executive</FormLabel>
-                    <Select value={field.value ?? "unassigned"} onValueChange={(v) => field.onChange(v === "unassigned" ? undefined : v)}>
+                    <FormLabel>Attended by</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
                       <FormControl>
                         <SelectTrigger className="w-full">
-                          <SelectValue />
+                          <SelectValue placeholder="Select Head or Manager" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="unassigned">Unassigned</SelectItem>
-                        {staff.map((member) => (
+                        <SelectItem value="none">None</SelectItem>
+                        {headManagers.map((member) => (
                           <SelectItem key={member.id} value={member.id}>
                             {member.full_name}
                           </SelectItem>
