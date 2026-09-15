@@ -6,6 +6,7 @@ import { CheckCircle2, Download, Loader2, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { approveSelection, deleteQuotation } from "@/lib/actions/quotations";
+import { placeOrder as placeOrderAction } from "@/lib/actions/orders";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -29,6 +30,7 @@ export function SelectionActions({
   attendedByName,
   preparedByName,
   role,
+  hasTileOrders,
 }: {
   quotation: Quotation;
   items: SelectionItemRow[];
@@ -36,6 +38,7 @@ export function SelectionActions({
   attendedByName: string | null;
   preparedByName: string | null;
   role: UserRole;
+  hasTileOrders: boolean;
 }) {
   const router = useRouter();
   const [isGenerating, setIsGenerating] = useState(false);
@@ -78,13 +81,30 @@ export function SelectionActions({
   const isQuotationContext = !wasDraft;
 
   function approve() {
+    // For a Selection this always just flips it into the Quotations view.
+    // For a Quotation, only the floors with the Tile Orders module actually
+    // transfer it into a real order — elsewhere it still just locks in
+    // place, same as before that feature existed.
+    if (isQuotationContext && hasTileOrders) {
+      startApprove(async () => {
+        const result = await placeOrderAction(quotation.id);
+        if (result.error) {
+          toast.error(result.error);
+          return;
+        }
+        toast.success("Order placed");
+        router.push(`/orders/${result.orderId}`);
+      });
+      return;
+    }
+
     startApprove(async () => {
       const result = await approveSelection(quotation.id);
       if (result.error) {
         toast.error(result.error);
         return;
       }
-      toast.success(wasDraft ? "Selection moved to Quotations" : "Order placed");
+      toast.success(wasDraft ? "Selection moved to Quotations" : "Quotation finalized");
       router.push("/quotations");
     });
   }

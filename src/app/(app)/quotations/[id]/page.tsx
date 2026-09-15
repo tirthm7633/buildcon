@@ -74,6 +74,7 @@ export default async function SelectionDetailPage({ params }: { params: Promise<
         attendedByName={attendedByName}
         preparedByName={createdByName}
         role={profile.role}
+        hasTileOrders={floor.modules.tileOrders}
       />
 
       <SelectionDocument

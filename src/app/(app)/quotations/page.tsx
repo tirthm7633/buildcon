@@ -16,6 +16,8 @@ export default async function QuotationsPage() {
     .from("quotations")
     .select("id, quotation_number, customer_name, customer_phone, status, total, issue_date, created_at")
     .eq("floor_id", floor.id)
+    // Placed into a Tile Order — tracked there from now on, not here.
+    .neq("status", "accepted")
     .order("created_at", { ascending: false });
 
   return (

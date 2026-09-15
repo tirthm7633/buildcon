@@ -342,6 +342,8 @@ export type TileOrderItem = {
   tile_order_id: string;
   catalogue_item_id: string | null;
   description: string;
+  size: string | null;
+  section: string | null;
   unit: string;
   quantity: number;
   rate: number;
