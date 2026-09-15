@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Package, Plus, Search, Trash2 } from "lucide-react";
+import { Loader2, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { addSelectionItem, removeSelectionItem, updateSelectionItem } from "@/lib/actions/quotations";
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ProductPickerDialog } from "@/components/quotations/product-picker-dialog";
+import { ProductImage } from "@/components/shared/product-image";
 
 type SizeOption = { id: string; size: string; rate: number };
 
@@ -137,14 +138,7 @@ export function SelectionItemsPanel({
         <div className="divide-y divide-border">
           {items.map((item, i) => (
             <div key={item.id} className="flex gap-3 p-3">
-              <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
-                {item.imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={item.imageUrl} alt="" className="size-full object-cover" />
-                ) : (
-                  <Package className="size-5 text-muted-foreground" />
-                )}
-              </div>
+              <ProductImage src={item.imageUrl} alt={item.description} className="size-24 sm:size-28" />
               <div className="min-w-0 flex-1 space-y-2">
                 <div className="flex items-start justify-between gap-2">
                   <p className="min-w-0 text-sm font-medium text-foreground">
@@ -211,14 +205,11 @@ export function SelectionItemsPanel({
           {editable && adding ? (
             <div className="flex flex-col gap-3 bg-muted/20 p-3">
               <div className="flex items-start gap-3">
-                <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
-                  {pendingProduct?.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={pendingProduct.imageUrl} alt="" className="size-full object-cover" />
-                  ) : (
-                    <Package className="size-5 text-muted-foreground" />
-                  )}
-                </div>
+                <ProductImage
+                  src={pendingProduct?.imageUrl ?? null}
+                  alt={pendingProduct?.description}
+                  className="size-24 sm:size-28"
+                />
                 <div className="min-w-0 flex-1">
                   {pendingProduct ? (
                     <div className="flex min-w-0 flex-wrap items-center gap-2">

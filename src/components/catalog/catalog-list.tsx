@@ -1,16 +1,23 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Package, Search } from "lucide-react";
+import { Grid2x2, Grid3x3, Package, Search, Square } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/shared/empty-state";
 import { CatalogCard, type CatalogCardData } from "@/components/catalog/catalog-card";
 import { Input } from "@/components/ui/input";
 
+const GRID_DENSITIES = [
+  { cols: 1, icon: Square, label: "1 per row" },
+  { cols: 2, icon: Grid2x2, label: "2 per row" },
+  { cols: 3, icon: Grid3x3, label: "3 per row" },
+] as const;
+
 export function CatalogList({ items }: { items: CatalogCardData[] }) {
   const [search, setSearch] = useState("");
   const [brand, setBrand] = useState<string | null>(null);
+  const [cols, setCols] = useState<1 | 2 | 3>(2);
 
   const brands = useMemo(() => {
     const counts = new Map<string, number>();
@@ -69,18 +76,37 @@ export function CatalogList({ items }: { items: CatalogCardData[] }) {
         </div>
       ) : null}
 
-      <div className="relative mb-5 max-w-sm">
-        <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by name, SKU, or brand…"
-          className="pl-8"
-        />
+      <div className="mb-5 flex items-center gap-2">
+        <div className="relative min-w-0 max-w-sm flex-1">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name, SKU, or brand…"
+            className="pl-8"
+          />
+        </div>
+        <div className="flex shrink-0 items-center gap-0.5 rounded-lg border border-border bg-muted p-1">
+          {GRID_DENSITIES.map(({ cols: n, icon: Icon, label }) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => setCols(n)}
+              aria-label={label}
+              aria-pressed={cols === n}
+              className={cn(
+                "flex size-8 items-center justify-center rounded-md transition-colors",
+                cols === n ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Icon className="size-4" />
+            </button>
+          ))}
+        </div>
       </div>
 
       {filtered.length ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
           {filtered.map((item) => (
             <CatalogCard key={item.id} item={item} />
           ))}

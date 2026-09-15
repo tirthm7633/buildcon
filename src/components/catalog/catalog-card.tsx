@@ -1,11 +1,10 @@
-import { Package } from "lucide-react";
-
 import { formatINR } from "@/lib/format";
 import type { CatalogueItem, CatalogueItemSize } from "@/lib/supabase/types";
-import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CatalogForm } from "@/components/catalog/catalog-form";
 import { Button } from "@/components/ui/button";
+import { ProductImage } from "@/components/shared/product-image";
 
 export interface CatalogCardData extends CatalogueItem {
   imageUrl: string | null;
@@ -14,31 +13,25 @@ export interface CatalogCardData extends CatalogueItem {
 
 export function CatalogCard({ item }: { item: CatalogCardData }) {
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-3">
-          <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted">
-            {item.imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={item.imageUrl} alt="" className="size-full object-cover" />
-            ) : (
-              <Package className="size-5 text-muted-foreground" />
-            )}
-          </div>
-          <div className="min-w-0">
-            <CardTitle className="truncate text-lg leading-snug">{item.name}</CardTitle>
-            <p className="truncate text-xs text-muted-foreground">{item.sku}</p>
-          </div>
-        </div>
-        <CardAction>
-          {!item.is_active ? (
-            <Badge variant="outline" className="text-muted-foreground">
-              Inactive
-            </Badge>
-          ) : null}
-        </CardAction>
-      </CardHeader>
+    <Card className="gap-3 pt-0">
+      <div className="relative">
+        <ProductImage
+          src={item.imageUrl}
+          alt={item.name}
+          className="aspect-square w-full rounded-none rounded-t-xl border-0"
+          iconClassName="size-10"
+        />
+        {!item.is_active ? (
+          <Badge variant="outline" className="absolute top-2 right-2 bg-background text-muted-foreground">
+            Inactive
+          </Badge>
+        ) : null}
+      </div>
       <CardContent className="space-y-3">
+        <div className="min-w-0">
+          <p className="truncate font-heading text-lg font-medium leading-snug text-foreground">{item.name}</p>
+          <p className="truncate text-xs text-muted-foreground">{item.sku}</p>
+        </div>
         {item.sizes.length > 1 ? (
           <div className="space-y-1 text-sm">
             {item.sizes.map((s) => (
