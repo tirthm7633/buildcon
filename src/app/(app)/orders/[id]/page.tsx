@@ -4,11 +4,12 @@ import { notFound } from "next/navigation";
 import { requirePageAccess } from "@/lib/permissions";
 import { requireFloor } from "@/lib/require-floor";
 import { createClient } from "@/lib/supabase/server";
-import { findBadgeClass, findLabel, ORDER_PAYMENT_STATUSES, TILE_ORDER_STATUSES } from "@/lib/constants";
+import { bottleneckTileItemStage, findBadgeClass, findLabel, ORDER_PAYMENT_STATUSES, TILE_ITEM_STAGES } from "@/lib/constants";
 import { formatDate, formatINR } from "@/lib/format";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { OrderItemsPanel } from "@/components/orders/order-items-panel";
 
 export default async function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -31,6 +32,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
 
   const customer = order.customers as unknown as { id: string; name: string; phone: string; address: string | null } | null;
   const quotation = order.quotations as unknown as { id: string; quotation_number: string } | null;
+  const bottleneck = bottleneckTileItemStage((items ?? []).map((i) => i.stage));
 
   return (
     <div className="space-y-6">
@@ -39,7 +41,9 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         description={customer ? <Link href={`/customers/${customer.id}`} className="hover:underline">{customer.name}</Link> : undefined}
         actions={
           <div className="flex items-center gap-2">
-            <StatusBadge label={findLabel(TILE_ORDER_STATUSES, order.status)} className={findBadgeClass(TILE_ORDER_STATUSES, order.status)} />
+            {bottleneck ? (
+              <StatusBadge label={findLabel(TILE_ITEM_STAGES, bottleneck)} className={findBadgeClass(TILE_ITEM_STAGES, bottleneck)} />
+            ) : null}
             <StatusBadge
               label={findLabel(ORDER_PAYMENT_STATUSES, order.payment_status)}
               className={findBadgeClass(ORDER_PAYMENT_STATUSES, order.payment_status)}
@@ -55,22 +59,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
           </CardHeader>
           <CardContent>
             {items && items.length ? (
-              <div className="divide-y divide-border rounded-lg border border-border">
-                {items.map((item) => (
-                  <div key={item.id} className="flex flex-col gap-1 p-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <p className="min-w-0 text-sm font-medium text-foreground">{item.description}</p>
-                      <p className="shrink-0 text-sm font-medium tabular-nums text-foreground">{formatINR(item.amount)}</p>
-                    </div>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                      <span>Area: {item.section ?? "—"}</span>
-                      <span>Size: {item.size ?? "—"}</span>
-                      <span>Qty: {item.quantity}</span>
-                      <span>Rate: {formatINR(item.rate, { precise: true })}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <OrderItemsPanel orderId={order.id} items={items} />
             ) : (
               <p className="py-8 text-center text-sm text-muted-foreground">No items on this order.</p>
             )}

@@ -52,6 +52,19 @@ export type TileOrderStatus =
   | "cancelled";
 export type OrderPaymentStatus = "unpaid" | "partially_paid" | "paid";
 
+/** Per-product fulfillment pipeline on a tile order — the real warehouse
+ * workflow, tracked per line item since different products on the same
+ * order can each be at a different point in it. */
+export type TileItemStage =
+  | "quotation"
+  | "brand_release"
+  | "released"
+  | "godown"
+  | "dispatched"
+  | "register"
+  | "chalan"
+  | "delivered";
+
 export type PurchaseStatus = "draft" | "ordered" | "partially_received" | "received" | "cancelled";
 
 export type PaymentMethod = "cash" | "upi" | "bank_transfer" | "cheque" | "card" | "other";
@@ -348,6 +361,7 @@ export type TileOrderItem = {
   quantity: number;
   rate: number;
   amount: number;
+  stage: TileItemStage;
 };
 
 export type Supplier = {

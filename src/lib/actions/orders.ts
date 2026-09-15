@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { getCurrentProfile } from "@/lib/auth";
+import { nextTileItemStage } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/server";
 
 /** Transfers a Quotation into a real Tile Order — a different table, not
@@ -102,4 +103,33 @@ export async function placeOrder(quotationId: string) {
   revalidatePath("/quotations");
   revalidatePath("/orders");
   return { error: null, orderId: order.id as string };
+}
+
+/** Moves one product on an order forward exactly one stage in the
+ * fulfillment pipeline (Quotation → ... → Delivered) — never a jump, so a
+ * product can't be marked Dispatched before it's actually left the godown.
+ * Write access is enforced by the tile_order_items RLS policy; a rejected
+ * update surfaces here as a normal error rather than a thrown exception. */
+export async function advanceItemStage(itemId: string, orderId: string) {
+  const profile = await getCurrentProfile();
+  if (!profile) return { error: "You must be signed in." };
+
+  const supabase = await createClient();
+
+  const { data: item, error: itemError } = await supabase
+    .from("tile_order_items")
+    .select("stage")
+    .eq("id", itemId)
+    .single();
+  if (itemError || !item) return { error: itemError?.message ?? "Item not found." };
+
+  const next = nextTileItemStage(item.stage);
+  if (!next) return { error: "This product is already at the last stage." };
+
+  const { error: updateError } = await supabase.from("tile_order_items").update({ stage: next }).eq("id", itemId);
+  if (updateError) return { error: updateError.message };
+
+  revalidatePath(`/orders/${orderId}`);
+  revalidatePath("/orders");
+  return { error: null };
 }

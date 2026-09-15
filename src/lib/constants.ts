@@ -7,7 +7,7 @@ import type {
   PaymentMethod,
   PurchaseStatus,
   QuotationStatus,
-  TileOrderStatus,
+  TileItemStage,
   UserRole,
   WalkinSource,
   WalkinStatus,
@@ -61,15 +61,36 @@ export const DISCOUNT_TYPES: { value: DiscountType; label: string }[] = [
   { value: "percent", label: "Percentage (%)" },
 ];
 
-export const TILE_ORDER_STATUSES: { value: TileOrderStatus; label: string; badgeClass: string }[] = [
-  { value: "pending_confirmation", label: "Pending Confirmation", badgeClass: "bg-secondary text-secondary-foreground border-border" },
-  { value: "confirmed", label: "Confirmed", badgeClass: "bg-sky-50 text-sky-700 border-sky-200" },
-  { value: "partially_fulfilled", label: "Partially Fulfilled", badgeClass: "bg-amber-50 text-amber-700 border-amber-200" },
-  { value: "ready_for_delivery", label: "Ready for Delivery", badgeClass: "bg-indigo-50 text-indigo-700 border-indigo-200" },
-  { value: "out_for_delivery", label: "Out for Delivery", badgeClass: "bg-indigo-50 text-indigo-700 border-indigo-200" },
+/** The real warehouse workflow each product on a tile order moves through,
+ * one stage at a time — order matters here, callers rely on array position
+ * to find "the next stage" (see nextTileItemStage). */
+export const TILE_ITEM_STAGES: { value: TileItemStage; label: string; badgeClass: string }[] = [
+  { value: "quotation", label: "Quotation", badgeClass: "bg-secondary text-secondary-foreground border-border" },
+  { value: "brand_release", label: "Brand Release", badgeClass: "bg-amber-50 text-amber-700 border-amber-200" },
+  { value: "released", label: "Released", badgeClass: "bg-amber-50 text-amber-700 border-amber-200" },
+  { value: "godown", label: "Godown", badgeClass: "bg-sky-50 text-sky-700 border-sky-200" },
+  { value: "dispatched", label: "Dispatched", badgeClass: "bg-indigo-50 text-indigo-700 border-indigo-200" },
+  { value: "register", label: "Register", badgeClass: "bg-indigo-50 text-indigo-700 border-indigo-200" },
+  { value: "chalan", label: "Chalan", badgeClass: "bg-violet-50 text-violet-700 border-violet-200" },
   { value: "delivered", label: "Delivered", badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  { value: "cancelled", label: "Cancelled", badgeClass: "bg-rose-50 text-rose-700 border-rose-200" },
 ];
+
+export function nextTileItemStage(stage: TileItemStage): TileItemStage | null {
+  const i = TILE_ITEM_STAGES.findIndex((s) => s.value === stage);
+  return i >= 0 && i < TILE_ITEM_STAGES.length - 1 ? TILE_ITEM_STAGES[i + 1].value : null;
+}
+
+export function tileItemStageIndex(stage: TileItemStage): number {
+  return TILE_ITEM_STAGES.findIndex((s) => s.value === stage);
+}
+
+/** An order's overall progress is only as far along as its least-advanced
+ * product — this is what should drive any order-level "status" display now
+ * that fulfillment is tracked per item. */
+export function bottleneckTileItemStage(stages: TileItemStage[]): TileItemStage | null {
+  if (!stages.length) return null;
+  return stages.reduce((earliest, s) => (tileItemStageIndex(s) < tileItemStageIndex(earliest) ? s : earliest));
+}
 
 export const PURCHASE_STATUSES: { value: PurchaseStatus; label: string; badgeClass: string }[] = [
   { value: "draft", label: "Draft", badgeClass: "bg-secondary text-secondary-foreground border-border" },
