@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 
 import { getCurrentProfile } from "@/lib/auth";
-import { nextTileItemStage } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/server";
+import { quotationRequiredFieldsError } from "@/lib/validations/quotation";
 
 /** Transfers a Quotation into a real Tile Order — a different table, not
  * another status on the same row, so this genuinely copies data across
@@ -26,6 +26,9 @@ export async function placeOrder(quotationId: string) {
     .eq("id", quotationId)
     .single();
   if (quotationError || !quotation) return { error: quotationError?.message ?? "Quotation not found." };
+
+  const requiredError = quotationRequiredFieldsError(quotation);
+  if (requiredError) return { error: requiredError };
 
   const { data: itemsRaw, error: itemsError } = await supabase
     .from("quotation_items")
@@ -105,12 +108,28 @@ export async function placeOrder(quotationId: string) {
   return { error: null, orderId: order.id as string };
 }
 
-/** Moves one product on an order forward exactly one stage in the
- * fulfillment pipeline (Quotation → ... → Delivered) — never a jump, so a
- * product can't be marked Dispatched before it's actually left the godown.
- * Write access is enforced by the tile_order_items RLS policy; a rejected
- * update surfaces here as a normal error rather than a thrown exception. */
-export async function advanceItemStage(itemId: string, orderId: string) {
+/** The catalog doesn't reliably carry a box count per product, so staff set
+ * it here once an order is placed — required before the item can be
+ * released, since every dispatch against it is measured in boxes. */
+export async function updateItemBoxes(itemId: string, orderId: string, boxes: number) {
+  const profile = await getCurrentProfile();
+  if (!profile) return { error: "You must be signed in." };
+  if (!(boxes > 0)) return { error: "Enter a box count greater than 0." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("tile_order_items").update({ boxes_ordered: boxes }).eq("id", itemId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/orders/${orderId}`);
+  revalidatePath("/orders");
+  return { error: null };
+}
+
+/** Marks a product released from the brand into BuildCon's hands — a single
+ * atomic action covering its whole ordered quantity (unlike dispatch, a
+ * release doesn't arrive in partial batches in practice). Requires a box
+ * count first so every later dispatch has something to be measured against. */
+export async function releaseItem(itemId: string, orderId: string) {
   const profile = await getCurrentProfile();
   if (!profile) return { error: "You must be signed in." };
 
@@ -118,18 +137,21 @@ export async function advanceItemStage(itemId: string, orderId: string) {
 
   const { data: item, error: itemError } = await supabase
     .from("tile_order_items")
-    .select("stage")
+    .select("boxes_ordered, released_at")
     .eq("id", itemId)
     .single();
   if (itemError || !item) return { error: itemError?.message ?? "Item not found." };
+  if (item.released_at) return { error: "Already released." };
+  if (!item.boxes_ordered || item.boxes_ordered <= 0) return { error: "Set the box count before releasing." };
 
-  const next = nextTileItemStage(item.stage);
-  if (!next) return { error: "This product is already at the last stage." };
-
-  const { error: updateError } = await supabase.from("tile_order_items").update({ stage: next }).eq("id", itemId);
+  const { error: updateError } = await supabase
+    .from("tile_order_items")
+    .update({ released_at: new Date().toISOString(), released_by: profile.id })
+    .eq("id", itemId);
   if (updateError) return { error: updateError.message };
 
   revalidatePath(`/orders/${orderId}`);
   revalidatePath("/orders");
+  revalidatePath("/orders/register");
   return { error: null };
 }

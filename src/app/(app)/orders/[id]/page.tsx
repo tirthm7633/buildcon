@@ -4,12 +4,12 @@ import { notFound } from "next/navigation";
 import { requirePageAccess } from "@/lib/permissions";
 import { requireFloor } from "@/lib/require-floor";
 import { createClient } from "@/lib/supabase/server";
-import { bottleneckTileItemStage, findBadgeClass, findLabel, ORDER_PAYMENT_STATUSES, TILE_ITEM_STAGES } from "@/lib/constants";
+import { bottleneckTileItemStatus, findBadgeClass, findLabel, ORDER_PAYMENT_STATUSES, TILE_ITEM_STATUSES, tileItemStatus } from "@/lib/constants";
 import { formatDate, formatINR } from "@/lib/format";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { OrderItemsPanel } from "@/components/orders/order-items-panel";
+import { OrderItemsPanel, type ItemDispatchEntry } from "@/components/orders/order-items-panel";
 
 export default async function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -26,13 +26,41 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
     .single();
   if (!order) notFound();
 
-  // No created_at/position column on this table (unlike quotation_items) —
-  // insertion order from placeOrder is preserved by default row order.
-  const { data: items } = await supabase.from("tile_order_items").select("*").eq("tile_order_id", id);
+  const [{ data: items }, { data: dispatchesRaw }] = await Promise.all([
+    supabase.from("tile_order_items").select("*").eq("tile_order_id", id),
+    supabase
+      .from("tile_dispatches")
+      .select("*, tile_dispatch_items(id, tile_order_item_id, boxes)")
+      .eq("tile_order_id", id)
+      .order("dispatched_at", { ascending: false }),
+  ]);
+
+  const dispatchesByItem: Record<string, ItemDispatchEntry[]> = {};
+  for (const d of dispatchesRaw ?? []) {
+    const dispatchItems = d.tile_dispatch_items as unknown as { tile_order_item_id: string; boxes: number }[];
+    for (const di of dispatchItems) {
+      (dispatchesByItem[di.tile_order_item_id] ??= []).push({
+        id: d.id,
+        dispatch_number: d.dispatch_number,
+        chalan_number: d.chalan_number,
+        status: d.status,
+        boxes: di.boxes,
+        dispatched_at: d.dispatched_at,
+        delivered_at: d.delivered_at,
+      });
+    }
+  }
 
   const customer = order.customers as unknown as { id: string; name: string; phone: string; address: string | null } | null;
   const quotation = order.quotations as unknown as { id: string; quotation_number: string } | null;
-  const bottleneck = bottleneckTileItemStage((items ?? []).map((i) => i.stage));
+
+  const statuses = (items ?? []).map((item) => {
+    const entries = dispatchesByItem[item.id] ?? [];
+    const dispatched = entries.reduce((sum, e) => sum + Number(e.boxes), 0);
+    const delivered = entries.filter((e) => e.status === "delivered").reduce((sum, e) => sum + Number(e.boxes), 0);
+    return tileItemStatus(item, dispatched, delivered);
+  });
+  const bottleneck = bottleneckTileItemStatus(statuses);
 
   return (
     <div className="space-y-6">
@@ -42,7 +70,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         actions={
           <div className="flex items-center gap-2">
             {bottleneck ? (
-              <StatusBadge label={findLabel(TILE_ITEM_STAGES, bottleneck)} className={findBadgeClass(TILE_ITEM_STAGES, bottleneck)} />
+              <StatusBadge label={findLabel(TILE_ITEM_STATUSES, bottleneck)} className={findBadgeClass(TILE_ITEM_STATUSES, bottleneck)} />
             ) : null}
             <StatusBadge
               label={findLabel(ORDER_PAYMENT_STATUSES, order.payment_status)}
@@ -59,7 +87,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
           </CardHeader>
           <CardContent>
             {items && items.length ? (
-              <OrderItemsPanel orderId={order.id} items={items} />
+              <OrderItemsPanel orderId={order.id} items={items} dispatchesByItem={dispatchesByItem} />
             ) : (
               <p className="py-8 text-center text-sm text-muted-foreground">No items on this order.</p>
             )}

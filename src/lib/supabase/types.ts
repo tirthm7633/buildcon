@@ -52,18 +52,12 @@ export type TileOrderStatus =
   | "cancelled";
 export type OrderPaymentStatus = "unpaid" | "partially_paid" | "paid";
 
-/** Per-product fulfillment pipeline on a tile order — the real warehouse
- * workflow, tracked per line item since different products on the same
- * order can each be at a different point in it. */
-export type TileItemStage =
-  | "quotation"
-  | "brand_release"
-  | "released"
-  | "godown"
-  | "dispatched"
-  | "register"
-  | "chalan"
-  | "delivered";
+/** Computed, not stored — derived per item from released_at plus how many
+ * of its boxes have shipped across its dispatches (see tileItemStatus). */
+export type TileItemStatus = "pending" | "released" | "partially_dispatched" | "dispatched" | "delivered";
+
+export type TileDispatchStatus = "dispatched" | "delivered";
+export type TileDispatchLocation = "released" | "godown";
 
 export type PurchaseStatus = "draft" | "ordered" | "partially_received" | "received" | "cancelled";
 
@@ -361,7 +355,35 @@ export type TileOrderItem = {
   quantity: number;
   rate: number;
   amount: number;
-  stage: TileItemStage;
+  /** Dispatch tracking runs on boxes, not the sq.ft `quantity` used for
+   * pricing — tiles physically ship by the box. Null until staff fill it
+   * in, since the catalog doesn't reliably carry a box count per product. */
+  boxes_ordered: number | null;
+  released_at: string | null;
+  released_by: string | null;
+};
+
+export type TileDispatch = {
+  id: string;
+  floor_id: FloorId;
+  tile_order_id: string;
+  dispatch_number: string;
+  chalan_number: string;
+  from_location: TileDispatchLocation;
+  vehicle: string | null;
+  driver: string | null;
+  status: TileDispatchStatus;
+  dispatched_at: string;
+  delivered_at: string | null;
+  created_by: string | null;
+  created_at: string;
+};
+
+export type TileDispatchItem = {
+  id: string;
+  tile_dispatch_id: string;
+  tile_order_item_id: string;
+  boxes: number;
 };
 
 export type Supplier = {
@@ -504,6 +526,8 @@ export interface Database {
       quotation_items: Table<QuotationItem, "quotation_id" | "description">;
       tile_orders: Table<TileOrder, "floor_id" | "order_number" | "customer_id">;
       tile_order_items: Table<TileOrderItem, "tile_order_id" | "description">;
+      tile_dispatches: Table<TileDispatch, "floor_id" | "tile_order_id" | "dispatch_number" | "chalan_number">;
+      tile_dispatch_items: Table<TileDispatchItem, "tile_dispatch_id" | "tile_order_item_id" | "boxes">;
       suppliers: Table<Supplier, "floor_id" | "name">;
       purchases: Table<Purchase, "floor_id" | "purchase_number" | "supplier_id">;
       purchase_items: Table<PurchaseItem, "purchase_id" | "description">;
@@ -520,6 +544,14 @@ export interface Database {
         Returns: string;
       };
       generate_order_number: {
+        Args: Record<string, never>;
+        Returns: string;
+      };
+      generate_dispatch_number: {
+        Args: Record<string, never>;
+        Returns: string;
+      };
+      generate_chalan_number: {
         Args: Record<string, never>;
         Returns: string;
       };
