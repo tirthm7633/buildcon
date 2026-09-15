@@ -174,6 +174,18 @@ export async function approveSelection(id: string) {
   return { error: null };
 }
 
+/** Permanently removes a Quotation (and its line items, via cascade). RLS
+ * is the real gate here (Owner/Head/Manager, not Staff — see migration
+ * 0015); this action just surfaces whatever the database decides. */
+export async function deleteQuotation(id: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("quotations").delete().eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath("/quotations");
+  return { error: null };
+}
+
 /** Live search for the customer picker — floor-scoped, matched on name or
  * phone. Selecting a result prefills the editable name/phone/address
  * snapshot; it isn't a lock to that record. */

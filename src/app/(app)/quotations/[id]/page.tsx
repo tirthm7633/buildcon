@@ -73,6 +73,7 @@ export default async function SelectionDetailPage({ params }: { params: Promise<
         company={company ?? null}
         attendedByName={attendedByName}
         preparedByName={createdByName}
+        role={profile.role}
       />
 
       <SelectionDocument
