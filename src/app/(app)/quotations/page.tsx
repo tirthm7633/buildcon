@@ -1,13 +1,10 @@
-import Link from "next/link";
-import { Plus } from "lucide-react";
-
 import { requirePageAccess } from "@/lib/permissions";
 import { requireFloor } from "@/lib/require-floor";
 import { createClient } from "@/lib/supabase/server";
 import { findBadgeClass, findLabel, QUOTATION_STATUSES } from "@/lib/constants";
 import { formatDate } from "@/lib/format";
 import { PageHeader } from "@/components/shared/page-header";
-import { Button } from "@/components/ui/button";
+import { NewQuotationButtons } from "@/components/quotations/new-quotation-buttons";
 import { QuotationsList } from "@/components/quotations/quotations-list";
 
 export default async function QuotationsPage() {
@@ -26,22 +23,7 @@ export default async function QuotationsPage() {
       <PageHeader
         title={floor.modules.quotationsLabel ?? "Quotations"}
         description="Selections in progress, and quotations ready for the next stage."
-        actions={
-          <>
-            <Button asChild variant="outline">
-              <Link href="/quotations/new?type=quotation">
-                <Plus className="size-4" />
-                New quotation
-              </Link>
-            </Button>
-            <Button asChild>
-              <Link href="/quotations/new">
-                <Plus className="size-4" />
-                New selection
-              </Link>
-            </Button>
-          </>
-        }
+        actions={<NewQuotationButtons />}
       />
       <QuotationsList
         rows={(quotations ?? []).map((q) => ({

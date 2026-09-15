@@ -6,11 +6,9 @@ import { createClient } from "@/lib/supabase/server";
 import { findBadgeClass, findLabel, QUOTATION_STATUSES } from "@/lib/constants";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { SelectionHeaderEditDialog } from "@/components/quotations/selection-header-edit-dialog";
 import { SelectionActions } from "@/components/quotations/selection-actions";
-import { SelectionItemsPanel, type SelectionItemRow } from "@/components/quotations/selection-items-panel";
+import { SelectionDocument } from "@/components/quotations/selection-document";
+import type { SelectionItemRow } from "@/components/quotations/selection-items-panel";
 
 export default async function SelectionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -51,34 +49,21 @@ export default async function SelectionDetailPage({ params }: { params: Promise<
     return { ...item, imageUrl: sorted[0]?.url ?? null, sizeOptions };
   });
 
-  const editable = quotation.status === "draft";
+  // Locked by locked_at, not status — a Selection approved from draft and a
+  // Quotation created directly (skipping draft) both end up "awaiting_approval",
+  // but the direct one starts empty and must stay editable until finalized.
+  const editable = !quotation.locked_at;
 
   return (
     <div className="space-y-6">
       <PageHeader
         title={quotation.customer_name || "Untitled selection"}
-        description={
-          <>
-            <span className="font-mono">{quotation.quotation_number}</span>
-          </>
-        }
+        description={<span className="font-mono">{quotation.quotation_number}</span>}
         actions={
-          <div className="flex items-center gap-2">
-            <StatusBadge
-              label={findLabel(QUOTATION_STATUSES, quotation.status)}
-              className={findBadgeClass(QUOTATION_STATUSES, quotation.status)}
-            />
-            {editable ? (
-              <SelectionHeaderEditDialog
-                quotation={quotation}
-                floorId={floor.id}
-                currentProfile={profile}
-                createdByName={createdByName}
-                headManagers={headManagers}
-                trigger={<Button variant="outline">Edit</Button>}
-              />
-            ) : null}
-          </div>
+          <StatusBadge
+            label={findLabel(QUOTATION_STATUSES, quotation.status)}
+            className={findBadgeClass(QUOTATION_STATUSES, quotation.status)}
+          />
         }
       />
 
@@ -90,43 +75,15 @@ export default async function SelectionDetailPage({ params }: { params: Promise<
         preparedByName={createdByName}
       />
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <SelectionItemsPanel quotationId={quotation.id} floorId={floor.id} items={items} editable={editable} />
-        </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Details</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Phone</span>
-              <span>{quotation.customer_phone}</span>
-            </div>
-            {quotation.customer_address ? (
-              <div className="flex justify-between gap-4">
-                <span className="shrink-0 text-muted-foreground">Address</span>
-                <span className="text-right">{quotation.customer_address}</span>
-              </div>
-            ) : null}
-            {quotation.reference ? (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Reference</span>
-                <span>{quotation.reference}</span>
-              </div>
-            ) : null}
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Prepared by</span>
-              <span>{createdByName ?? "—"}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Attended by</span>
-              <span>{attendedByName ?? "None"}</span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <SelectionDocument
+        quotation={quotation}
+        floorId={floor.id}
+        createdByName={createdByName}
+        headManagers={headManagers}
+        items={items}
+        editable={editable}
+        company={company ?? null}
+      />
     </div>
   );
 }

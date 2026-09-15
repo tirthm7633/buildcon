@@ -2,17 +2,16 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Package, Plus, Trash2 } from "lucide-react";
+import { Loader2, Package, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { addSelectionItem, removeSelectionItem, updateSelectionItem } from "@/lib/actions/quotations";
-import { searchCatalogItems } from "@/lib/actions/catalog";
 import { formatINR } from "@/lib/format";
 import type { FloorId, QuotationItem } from "@/lib/supabase/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { SearchPicker } from "@/components/shared/search-picker";
+import { ProductPickerDialog } from "@/components/quotations/product-picker-dialog";
 
 type SizeOption = { id: string; size: string; rate: number };
 
@@ -49,6 +48,7 @@ export function SelectionItemsPanel({
   const [adding, setAdding] = useState(false);
   const [pendingProduct, setPendingProduct] = useState<PendingProduct | null>(null);
   const [area, setArea] = useState("");
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const selectedSize = pendingProduct?.sizes.find((s) => s.id === pendingProduct.selectedSizeId) ?? null;
 
@@ -123,17 +123,18 @@ export function SelectionItemsPanel({
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border">
-      <table className="w-full text-sm">
+    <>
+      <div className="overflow-x-auto rounded-lg border border-border">
+        <table className="w-full min-w-[860px] table-fixed text-sm">
         <thead>
           <tr className="border-b border-border bg-muted/50 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <th className="p-3">Sr.</th>
-            <th className="p-3">Image</th>
-            <th className="p-3">Area</th>
+            <th className="w-10 p-3">Sr.</th>
+            <th className="w-24 p-3">Image</th>
+            <th className="w-28 p-3">Area</th>
             <th className="p-3">Product detail</th>
-            <th className="p-3">Size</th>
-            <th className="p-3 text-right">Rate/sq.ft</th>
-            {editable ? <th className="p-3" /> : null}
+            <th className="w-28 p-3">Size</th>
+            <th className="w-24 p-3 text-right">Rate/sq.ft</th>
+            {editable ? <th className="w-36 p-3" /> : null}
           </tr>
         </thead>
         <tbody>
@@ -141,12 +142,12 @@ export function SelectionItemsPanel({
             <tr key={item.id} className="border-b border-border last:border-0">
               <td className="p-3 text-muted-foreground">{i + 1}</td>
               <td className="p-3">
-                <div className="flex size-10 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
+                <div className="flex size-16 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
                   {item.imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={item.imageUrl} alt="" className="size-full object-cover" />
                   ) : (
-                    <Package className="size-4 text-muted-foreground" />
+                    <Package className="size-6 text-muted-foreground" />
                   )}
                 </div>
               </td>
@@ -194,119 +195,124 @@ export function SelectionItemsPanel({
               ) : null}
             </tr>
           ))}
-        </tbody>
-      </table>
 
-      {editable ? (
-        <div className="border-t border-border p-3">
-          {adding ? (
-            <div className="space-y-3">
-              {pendingProduct ? (
-                <div className="space-y-2 rounded-md border border-border p-2">
-                  <div className="flex items-center gap-3">
-                    <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
-                      {pendingProduct.imageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={pendingProduct.imageUrl} alt="" className="size-full object-cover" />
-                      ) : (
-                        <Package className="size-4 text-muted-foreground" />
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{pendingProduct.description}</p>
-                      {selectedSize ? (
-                        <p className="text-xs text-muted-foreground">
-                          {selectedSize.size} · {formatINR(selectedSize.rate)}/sq.ft
-                        </p>
-                      ) : (
-                        <p className="text-xs text-amber-600">Select a size below</p>
-                      )}
-                    </div>
-                    <Button variant="ghost" size="sm" onClick={() => setPendingProduct(null)}>
-                      Change
-                    </Button>
-                  </div>
-
-                  {pendingProduct.sizes.length > 1 ? (
-                    <Select
-                      value={pendingProduct.selectedSizeId ?? undefined}
-                      onValueChange={(v) => setPendingProduct({ ...pendingProduct, selectedSizeId: v })}
-                    >
-                      <SelectTrigger className="h-9 w-full">
-                        <SelectValue placeholder="Choose a size" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {pendingProduct.sizes.map((s) => (
-                          <SelectItem key={s.id} value={s.id}>
-                            {s.size} — {formatINR(s.rate)}/sq.ft
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : null}
-                </div>
-              ) : (
-                <SearchPicker
-                  placeholder="Search products by name or SKU…"
-                  onSearch={(q) => searchCatalogItems(floorId, q)}
-                  resultKey={(p) => p.id}
-                  renderResult={(p) => (
-                    <div>
-                      <p className="font-medium text-foreground">{p.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {p.sku} ·{" "}
-                        {p.sizes.length > 1
-                          ? `${p.sizes.length} sizes, from ${formatINR(Math.min(...p.sizes.map((s) => s.rate)))}/${p.unit}`
-                          : p.sizes.length === 1
-                            ? `${p.sizes[0].size} · ${formatINR(p.sizes[0].rate)}/${p.unit}`
-                            : "No sizes set up"}
-                      </p>
-                    </div>
+          {editable && adding ? (
+            <tr className="border-b border-border bg-muted/20 last:border-0">
+              <td className="p-3 text-muted-foreground">
+                <Plus className="size-4" />
+              </td>
+              <td className="p-3">
+                <div className="flex size-16 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
+                  {pendingProduct?.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={pendingProduct.imageUrl} alt="" className="size-full object-cover" />
+                  ) : (
+                    <Package className="size-6 text-muted-foreground" />
                   )}
-                  onSelect={(p) =>
-                    setPendingProduct({
-                      catalogue_item_id: p.id,
-                      description: p.name,
-                      imageUrl: p.imageUrl,
-                      sizes: p.sizes,
-                      selectedSizeId: p.sizes.length === 1 ? p.sizes[0].id : null,
-                    })
-                  }
-                />
-              )}
-
-              <div className="flex items-center gap-2">
+                </div>
+              </td>
+              <td className="p-3">
                 <Input
                   value={area}
                   onChange={(e) => setArea(e.target.value)}
-                  placeholder="Area, e.g. Living Room"
-                  className="h-9"
+                  placeholder="e.g. Living Room"
+                  className="h-8 w-32 text-sm"
                 />
-                <Button size="sm" onClick={confirmAdd} disabled={!selectedSize || isPending}>
-                  {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
-                  Add
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setAdding(false);
-                    setPendingProduct(null);
-                    setArea("");
-                  }}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          ) : (
+              </td>
+              <td className="p-3">
+                {pendingProduct ? (
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className="truncate text-sm font-medium text-foreground">{pendingProduct.description}</span>
+                    <Button variant="ghost" size="sm" className="h-7 shrink-0 px-2" onClick={() => setPendingProduct(null)}>
+                      Change
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1.5 px-3 text-muted-foreground"
+                    onClick={() => setPickerOpen(true)}
+                  >
+                    <Search className="size-3.5" />
+                    Search products…
+                  </Button>
+                )}
+              </td>
+              <td className="p-3">
+                {pendingProduct && pendingProduct.sizes.length > 1 ? (
+                  <Select
+                    value={pendingProduct.selectedSizeId ?? undefined}
+                    onValueChange={(v) => setPendingProduct({ ...pendingProduct, selectedSizeId: v })}
+                  >
+                    <SelectTrigger className="h-8 w-full text-sm">
+                      <SelectValue placeholder="Choose size" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {pendingProduct.sizes.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.size} — {formatINR(s.rate)}/sq.ft
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <span className="text-sm text-muted-foreground">{selectedSize?.size ?? "—"}</span>
+                )}
+              </td>
+              <td className="p-3 text-right text-sm text-foreground">
+                {selectedSize ? formatINR(selectedSize.rate) : "—"}
+              </td>
+              <td className="p-3">
+                <div className="flex items-center justify-end gap-1.5">
+                  <Button size="sm" className="h-8 px-3" onClick={confirmAdd} disabled={!selectedSize || isPending}>
+                    {isPending ? <Loader2 className="size-4 animate-spin" /> : "Add"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-3"
+                    onClick={() => {
+                      setAdding(false);
+                      setPendingProduct(null);
+                      setArea("");
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </td>
+            </tr>
+          ) : null}
+        </tbody>
+      </table>
+
+        {editable && !adding ? (
+          <div className="border-t border-border p-3">
             <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
               <Plus className="size-4" />
               Add product
             </Button>
-          )}
-        </div>
-      ) : null}
-    </div>
+          </div>
+        ) : null}
+      </div>
+
+      <ProductPickerDialog
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        floorId={floorId}
+        onSelect={(p) => {
+          setPendingProduct({
+            catalogue_item_id: p.id,
+            description: p.name,
+            imageUrl: p.imageUrl,
+            sizes: p.sizes,
+            selectedSizeId: p.sizes.length === 1 ? p.sizes[0].id : null,
+          });
+          setPickerOpen(false);
+        }}
+      />
+    </>
   );
 }

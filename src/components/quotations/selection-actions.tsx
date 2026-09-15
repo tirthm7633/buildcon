@@ -54,6 +54,8 @@ export function SelectionActions({
     }
   }
 
+  const wasDraft = quotation.status === "draft";
+
   function approve() {
     startApprove(async () => {
       const result = await approveSelection(quotation.id);
@@ -61,7 +63,7 @@ export function SelectionActions({
         toast.error(result.error);
         return;
       }
-      toast.success("Selection approved — moved to Quotations");
+      toast.success(wasDraft ? "Selection approved — moved to Quotations" : "Quotation finalized");
       router.push("/quotations");
     });
   }
@@ -72,10 +74,10 @@ export function SelectionActions({
         {isGenerating ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
         Generate PDF
       </Button>
-      {quotation.status === "draft" ? (
+      {!quotation.locked_at ? (
         <Button size="sm" onClick={approve} disabled={isApproving || items.length === 0}>
           {isApproving ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
-          Approve
+          {wasDraft ? "Approve" : "Finalize"}
         </Button>
       ) : null}
     </div>

@@ -290,6 +290,11 @@ export type Quotation = {
   sent_at: string | null;
   viewed_at: string | null;
   decided_at: string | null;
+  /** When a staff member locked the document from further editing — via
+   * Approve (Selection → Quotation) or Finalize (a Quotation created
+   * directly). Distinct from decided_at, which is the customer's own
+   * accept/reject decision and can happen well after this. */
+  locked_at: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

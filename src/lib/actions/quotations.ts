@@ -6,29 +6,16 @@ import { canAccessFloor, getCurrentProfile } from "@/lib/auth";
 import { getActiveFloorId } from "@/lib/floor-context";
 import { createClient } from "@/lib/supabase/server";
 import type { FloorId } from "@/lib/supabase/types";
-import { selectionHeaderSchema, selectionItemSchema, type SelectionHeaderValues } from "@/lib/validations/quotation";
+import { selectionItemSchema } from "@/lib/validations/quotation";
 
-function cleanHeader(values: SelectionHeaderValues) {
-  return {
-    customer_id: values.customer_id || null,
-    customer_name: values.customer_name,
-    customer_phone: values.customer_phone,
-    customer_address: values.customer_address || null,
-    reference: values.reference || null,
-    attended_by: values.attended_by === "none" ? null : values.attended_by,
-  };
-}
-
-/** Creates a Selection — a quotations row in status 'draft' — or, when
- * `startAsQuotation` is set, the same row starting directly at
+/** Creates an empty Selection — a quotations row in status 'draft' — or,
+ * when `startAsQuotation` is set, the same row starting directly at
  * 'awaiting_approval' for a customer who doesn't need the Selection stage.
- * Either way reserves a real quotation number immediately (the same
- * per-floor sequence used everywhere else) since "Selection/Quotation No."
- * is one number for the document's whole lifecycle, not reissued later. */
-export async function createSelection(values: SelectionHeaderValues, startAsQuotation = false) {
-  const parsed = selectionHeaderSchema.safeParse(values);
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
-
+ * Nothing is asked upfront: the document opens immediately with its number
+ * already reserved (the same per-floor sequence used everywhere else, one
+ * number for the whole document lifecycle) and every field — customer
+ * included — is filled in afterward, in place, on the document itself. */
+export async function createEmptyQuotation(startAsQuotation = false) {
   const profile = await getCurrentProfile();
   if (!profile) return { error: "You must be signed in." };
 
@@ -44,10 +31,11 @@ export async function createSelection(values: SelectionHeaderValues, startAsQuot
   const { data, error } = await supabase
     .from("quotations")
     .insert({
-      ...cleanHeader(parsed.data),
       floor_id: floorId,
       quotation_number: numberData as string,
       created_by: profile.id,
+      customer_name: "",
+      customer_phone: "",
       ...(startAsQuotation ? { status: "awaiting_approval" as const } : {}),
     })
     .select("id")
@@ -59,12 +47,49 @@ export async function createSelection(values: SelectionHeaderValues, startAsQuot
   return { error: null, id: data.id as string };
 }
 
-export async function updateSelectionHeader(id: string, values: SelectionHeaderValues) {
-  const parsed = selectionHeaderSchema.safeParse(values);
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+type QuotationTextField = "customer_name" | "customer_phone" | "customer_address" | "reference" | "attended_by";
 
+/** Saves one header field in place — the document has no separate "edit
+ * form" to submit, each field commits on its own as soon as you leave it,
+ * the same pattern already used for a line item's Area/Size. */
+export async function updateQuotationField(id: string, field: QuotationTextField, value: string) {
   const supabase = await createClient();
-  const { error } = await supabase.from("quotations").update(cleanHeader(parsed.data)).eq("id", id);
+  const table = supabase.from("quotations");
+
+  const { error } =
+    field === "customer_name"
+      ? await table.update({ customer_name: value }).eq("id", id)
+      : field === "customer_phone"
+        ? await table.update({ customer_phone: value }).eq("id", id)
+        : field === "customer_address"
+          ? await table.update({ customer_address: value || null }).eq("id", id)
+          : field === "reference"
+            ? await table.update({ reference: value || null }).eq("id", id)
+            : await table.update({ attended_by: value === "none" || !value ? null : value }).eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath("/quotations");
+  revalidatePath(`/quotations/${id}`);
+  return { error: null };
+}
+
+/** Picking an existing customer sets name/phone/address together in one
+ * save — the fields stay editable snapshots afterward, not locked to the
+ * customer record. */
+export async function applyCustomerPick(
+  id: string,
+  customer: { id: string; name: string; phone: string; address: string | null }
+) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("quotations")
+    .update({
+      customer_id: customer.id,
+      customer_name: customer.name,
+      customer_phone: customer.phone,
+      customer_address: customer.address ?? null,
+    })
+    .eq("id", id);
   if (error) return { error: error.message };
 
   revalidatePath("/quotations");
@@ -129,13 +154,19 @@ export async function removeSelectionItem(itemId: string, quotationId: string) {
   return { error: null };
 }
 
-/** The only status transition this feature needs: draft (Selection) →
- * awaiting_approval (Quotation). Nothing is copied or deleted — the same
- * row just now shows up in the Quotations view instead of Selections,
- * since those are just two filtered views of quotations.status. */
+/** Locks the document from further editing and — for a Selection still in
+ * draft — moves it into the Quotations view. A Quotation created directly
+ * (skipping the Selection stage) is already in that view but starts
+ * unlocked, since it's still empty; this is what finalizes it. Nothing is
+ * copied or deleted either way — the same row just changes in place.
+ * `locked_at` (not status) is the actual "locked" marker, since a direct
+ * Quotation and an approved Selection both end up at the same status. */
 export async function approveSelection(id: string) {
   const supabase = await createClient();
-  const { error } = await supabase.from("quotations").update({ status: "awaiting_approval" }).eq("id", id);
+  const { error } = await supabase
+    .from("quotations")
+    .update({ status: "awaiting_approval", locked_at: new Date().toISOString() })
+    .eq("id", id);
   if (error) return { error: error.message };
 
   revalidatePath("/quotations");
