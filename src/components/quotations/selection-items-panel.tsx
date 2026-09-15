@@ -32,6 +32,15 @@ type PendingProduct = {
   selectedSizeId: string | null;
 };
 
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      {children}
+    </div>
+  );
+}
+
 export function SelectionItemsPanel({
   quotationId,
   floorId,
@@ -124,169 +133,172 @@ export function SelectionItemsPanel({
 
   return (
     <>
-      <div className="overflow-x-auto rounded-lg border border-border">
-        <table className="w-full min-w-[860px] table-fixed text-sm">
-        <thead>
-          <tr className="border-b border-border bg-muted/50 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <th className="w-10 p-3">Sr.</th>
-            <th className="w-24 p-3">Image</th>
-            <th className="w-28 p-3">Area</th>
-            <th className="p-3">Product detail</th>
-            <th className="w-28 p-3">Size</th>
-            <th className="w-24 p-3 text-right">Rate/sq.ft</th>
-            {editable ? <th className="w-36 p-3" /> : null}
-          </tr>
-        </thead>
-        <tbody>
+      <div className="rounded-lg border border-border">
+        <div className="divide-y divide-border">
           {items.map((item, i) => (
-            <tr key={item.id} className="border-b border-border last:border-0">
-              <td className="p-3 text-muted-foreground">{i + 1}</td>
-              <td className="p-3">
-                <div className="flex size-16 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
-                  {item.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={item.imageUrl} alt="" className="size-full object-cover" />
-                  ) : (
-                    <Package className="size-6 text-muted-foreground" />
-                  )}
+            <div key={item.id} className="flex gap-3 p-3">
+              <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
+                {item.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={item.imageUrl} alt="" className="size-full object-cover" />
+                ) : (
+                  <Package className="size-5 text-muted-foreground" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="min-w-0 text-sm font-medium text-foreground">
+                    <span className="mr-1.5 text-xs text-muted-foreground">{i + 1}.</span>
+                    {item.description}
+                  </p>
+                  {editable ? (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-7 shrink-0"
+                      onClick={() => remove(item.id)}
+                      disabled={isPending}
+                    >
+                      <Trash2 className="size-4 text-destructive" />
+                    </Button>
+                  ) : null}
                 </div>
-              </td>
-              <td className="p-3">
-                {editable ? (
-                  <Input
-                    defaultValue={item.section ?? ""}
-                    onBlur={(e) => saveArea(item, e.target.value)}
-                    placeholder="e.g. Living Room"
-                    className="h-8 w-32 text-sm"
-                  />
-                ) : (
-                  (item.section ?? "—")
-                )}
-              </td>
-              <td className="p-3 text-foreground">{item.description}</td>
-              <td className="p-3 text-muted-foreground">
-                {editable && item.sizeOptions.length > 1 ? (
-                  <Select value={item.size ?? undefined} onValueChange={(v) => {
-                    const opt = item.sizeOptions.find((s) => s.size === v);
-                    if (opt) changeSize(item, opt);
-                  }}>
-                    <SelectTrigger className="h-8 w-28 text-sm">
-                      <SelectValue placeholder="Size" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {item.sizeOptions.map((s) => (
-                        <SelectItem key={s.id} value={s.size}>
-                          {s.size}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  (item.size ?? "—")
-                )}
-              </td>
-              <td className="p-3 text-right text-foreground">{formatINR(item.rate)}</td>
-              {editable ? (
-                <td className="p-3 text-right">
-                  <Button variant="ghost" size="icon" className="size-8" onClick={() => remove(item.id)} disabled={isPending}>
-                    <Trash2 className="size-4 text-destructive" />
-                  </Button>
-                </td>
-              ) : null}
-            </tr>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                  <Field label="Area">
+                    {editable ? (
+                      <Input
+                        defaultValue={item.section ?? ""}
+                        onBlur={(e) => saveArea(item, e.target.value)}
+                        placeholder="e.g. Living Room"
+                        className="h-8 w-32 text-sm"
+                      />
+                    ) : (
+                      <span className="text-sm text-foreground">{item.section ?? "—"}</span>
+                    )}
+                  </Field>
+                  <Field label="Size">
+                    {editable && item.sizeOptions.length > 1 ? (
+                      <Select
+                        value={item.size ?? undefined}
+                        onValueChange={(v) => {
+                          const opt = item.sizeOptions.find((s) => s.size === v);
+                          if (opt) changeSize(item, opt);
+                        }}
+                      >
+                        <SelectTrigger className="h-8 w-28 text-sm">
+                          <SelectValue placeholder="Size" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {item.sizeOptions.map((s) => (
+                            <SelectItem key={s.id} value={s.size}>
+                              {s.size}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <span className="text-sm text-foreground">{item.size ?? "—"}</span>
+                    )}
+                  </Field>
+                  <Field label="Rate/sq.ft">
+                    <span className="text-sm font-medium tabular-nums text-foreground">{formatINR(item.rate)}</span>
+                  </Field>
+                </div>
+              </div>
+            </div>
           ))}
 
           {editable && adding ? (
-            <tr className="border-b border-border bg-muted/20 last:border-0">
-              <td className="p-3 text-muted-foreground">
-                <Plus className="size-4" />
-              </td>
-              <td className="p-3">
-                <div className="flex size-16 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
+            <div className="flex flex-col gap-3 bg-muted/20 p-3">
+              <div className="flex items-start gap-3">
+                <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
                   {pendingProduct?.imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={pendingProduct.imageUrl} alt="" className="size-full object-cover" />
                   ) : (
-                    <Package className="size-6 text-muted-foreground" />
+                    <Package className="size-5 text-muted-foreground" />
                   )}
                 </div>
-              </td>
-              <td className="p-3">
-                <Input
-                  value={area}
-                  onChange={(e) => setArea(e.target.value)}
-                  placeholder="e.g. Living Room"
-                  className="h-8 w-32 text-sm"
-                />
-              </td>
-              <td className="p-3">
-                {pendingProduct ? (
-                  <div className="flex min-w-0 items-center gap-2">
-                    <span className="truncate text-sm font-medium text-foreground">{pendingProduct.description}</span>
-                    <Button variant="ghost" size="sm" className="h-7 shrink-0 px-2" onClick={() => setPendingProduct(null)}>
-                      Change
+                <div className="min-w-0 flex-1">
+                  {pendingProduct ? (
+                    <div className="flex min-w-0 flex-wrap items-center gap-2">
+                      <span className="text-sm font-medium text-foreground">{pendingProduct.description}</span>
+                      <Button variant="ghost" size="sm" className="h-7 shrink-0 px-2" onClick={() => setPendingProduct(null)}>
+                        Change
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 gap-1.5 px-3 text-muted-foreground"
+                      onClick={() => setPickerOpen(true)}
+                    >
+                      <Search className="size-3.5" />
+                      Search products…
                     </Button>
-                  </div>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-8 gap-1.5 px-3 text-muted-foreground"
-                    onClick={() => setPickerOpen(true)}
-                  >
-                    <Search className="size-3.5" />
-                    Search products…
-                  </Button>
-                )}
-              </td>
-              <td className="p-3">
-                {pendingProduct && pendingProduct.sizes.length > 1 ? (
-                  <Select
-                    value={pendingProduct.selectedSizeId ?? undefined}
-                    onValueChange={(v) => setPendingProduct({ ...pendingProduct, selectedSizeId: v })}
-                  >
-                    <SelectTrigger className="h-8 w-full text-sm">
-                      <SelectValue placeholder="Choose size" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {pendingProduct.sizes.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>
-                          {s.size} — {formatINR(s.rate)}/sq.ft
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <span className="text-sm text-muted-foreground">{selectedSize?.size ?? "—"}</span>
-                )}
-              </td>
-              <td className="p-3 text-right text-sm text-foreground">
-                {selectedSize ? formatINR(selectedSize.rate) : "—"}
-              </td>
-              <td className="p-3">
-                <div className="flex items-center justify-end gap-1.5">
-                  <Button size="sm" className="h-8 px-3" onClick={confirmAdd} disabled={!selectedSize || isPending}>
-                    {isPending ? <Loader2 className="size-4 animate-spin" /> : "Add"}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 px-3"
-                    onClick={() => {
-                      setAdding(false);
-                      setPendingProduct(null);
-                      setArea("");
-                    }}
-                  >
-                    Cancel
-                  </Button>
+                  )}
                 </div>
-              </td>
-            </tr>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                <Field label="Area">
+                  <Input
+                    value={area}
+                    onChange={(e) => setArea(e.target.value)}
+                    placeholder="e.g. Living Room"
+                    className="h-8 w-32 text-sm"
+                  />
+                </Field>
+                <Field label="Size">
+                  {pendingProduct && pendingProduct.sizes.length > 1 ? (
+                    <Select
+                      value={pendingProduct.selectedSizeId ?? undefined}
+                      onValueChange={(v) => setPendingProduct({ ...pendingProduct, selectedSizeId: v })}
+                    >
+                      <SelectTrigger className="h-8 w-40 text-sm">
+                        <SelectValue placeholder="Choose size" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {pendingProduct.sizes.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.size} — {formatINR(s.rate)}/sq.ft
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <span className="text-sm text-foreground">{selectedSize?.size ?? "—"}</span>
+                  )}
+                </Field>
+                <Field label="Rate/sq.ft">
+                  <span className="text-sm font-medium tabular-nums text-foreground">
+                    {selectedSize ? formatINR(selectedSize.rate) : "—"}
+                  </span>
+                </Field>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <Button size="sm" className="h-8 px-3" onClick={confirmAdd} disabled={!selectedSize || isPending}>
+                  {isPending ? <Loader2 className="size-4 animate-spin" /> : "Add"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-3"
+                  onClick={() => {
+                    setAdding(false);
+                    setPendingProduct(null);
+                    setArea("");
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
           ) : null}
-        </tbody>
-      </table>
+        </div>
 
         {editable && !adding ? (
           <div className="border-t border-border p-3">

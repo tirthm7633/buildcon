@@ -38,7 +38,7 @@ export function CatalogList({ items }: { items: CatalogCardData[] }) {
   return (
     <div>
       {brands.length ? (
-        <div className="mb-4 -mx-4 flex gap-2 overflow-x-auto px-4 pb-2 sm:mx-0 sm:flex-wrap sm:px-0 sm:pb-0">
+        <div className="mb-4 flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => setBrand(null)}

@@ -13,8 +13,8 @@ import type { FollowUpWithContext } from "@/lib/queries/follow-ups";
 import type { Profile } from "@/lib/supabase/types";
 import { EmptyState } from "@/components/shared/empty-state";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -42,6 +42,14 @@ function isToday(f: FollowUpWithContext) {
   return due.toDateString() === now.toDateString();
 }
 
+const TABS = [
+  { value: "today", label: "Today" },
+  { value: "overdue", label: "Overdue" },
+  { value: "upcoming", label: "Upcoming" },
+  { value: "completed", label: "Completed" },
+  { value: "all", label: "All" },
+] as const;
+
 export function FollowUpsWorkspace({ followUps, staff }: { followUps: FollowUpWithContext[]; staff: Profile[] }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -49,6 +57,7 @@ export function FollowUpsWorkspace({ followUps, staff }: { followUps: FollowUpWi
   const [outcomeNote, setOutcomeNote] = useState("");
   const [rescheduling, setRescheduling] = useState<FollowUpWithContext | null>(null);
   const [newDueAt, setNewDueAt] = useState("");
+  const [tab, setTab] = useState<(typeof TABS)[number]["value"]>("today");
 
   const groups = useMemo(() => {
     const pending = followUps.filter((f) => f.status === "pending");
@@ -119,128 +128,114 @@ export function FollowUpsWorkspace({ followUps, staff }: { followUps: FollowUpWi
     }
 
     return (
-      <div className="overflow-hidden rounded-lg border border-border">
-        <table className="w-full text-sm">
-          <tbody>
-            {rows.map((f) => (
-              <tr key={f.id} className="border-b border-border last:border-0">
-                <td className="w-2 py-3 pl-4">
-                  <span
-                    className={`block size-2 rounded-full ${
-                      isOverdue(f) ? "bg-destructive" : f.priority === "urgent" ? "bg-destructive" : f.priority === "high" ? "bg-primary" : "bg-muted-foreground/40"
-                    }`}
-                  />
-                </td>
-                <td className="py-3 pr-3">
+      <div className="divide-y divide-border rounded-lg border border-border">
+        {rows.map((f) => (
+          <div key={f.id} className="flex flex-col gap-2 p-3">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex min-w-0 items-start gap-2">
+                <span
+                  className={`mt-1.5 block size-2 shrink-0 rounded-full ${
+                    isOverdue(f) ? "bg-destructive" : f.priority === "urgent" ? "bg-destructive" : f.priority === "high" ? "bg-primary" : "bg-muted-foreground/40"
+                  }`}
+                />
+                <div className="min-w-0">
                   <Link href={f.href} className="font-medium text-foreground hover:underline">
                     {f.entityLabel}
                   </Link>
-                  {f.notes ? <p className="mt-0.5 max-w-xs truncate text-xs text-muted-foreground">{f.notes}</p> : null}
-                </td>
-                <td className="py-3 pr-3 text-muted-foreground">{findLabel(FOLLOW_UP_TYPES, f.type)}</td>
-                <td className="py-3 pr-3">
-                  <StatusBadge
-                    label={findLabel(FOLLOW_UP_PRIORITIES, f.priority)}
-                    className={findBadgeClass(FOLLOW_UP_PRIORITIES, f.priority)}
-                  />
-                </td>
-                <td className={`py-3 pr-3 whitespace-nowrap ${isOverdue(f) ? "font-medium text-destructive" : "text-muted-foreground"}`}>
-                  {formatDateTime(f.due_at)}
-                </td>
-                <td className="py-3 pr-3">
-                  <Select
-                    value={f.assigned_to ?? "unassigned"}
-                    onValueChange={(v) => handleReassign(f.id, v)}
-                    disabled={isPending}
+                  {f.notes ? <p className="mt-0.5 truncate text-xs text-muted-foreground">{f.notes}</p> : null}
+                </div>
+              </div>
+              {f.status === "pending" ? (
+                <div className="flex shrink-0 items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8 text-emerald-600 hover:text-emerald-700"
+                    onClick={() => setCompleting(f)}
+                    title="Mark complete"
                   >
-                    <SelectTrigger className="h-8 w-40 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="unassigned">Unassigned</SelectItem>
-                      {staff.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>
-                          {s.full_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </td>
-                <td className="py-3 pr-4 text-right">
-                  {f.status === "pending" ? (
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-8 text-emerald-600 hover:text-emerald-700"
-                        onClick={() => setCompleting(f)}
-                        title="Mark complete"
-                      >
-                        <CheckCircle2 className="size-4" />
+                    <CheckCircle2 className="size-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8"
+                    onClick={() => {
+                      setRescheduling(f);
+                      setNewDueAt(isoToISTInputValue(f.due_at));
+                    }}
+                    title="Reschedule"
+                  >
+                    <CalendarClock className="size-4" />
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="size-8">
+                        <MoreHorizontal className="size-4" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-8"
-                        onClick={() => {
-                          setRescheduling(f);
-                          setNewDueAt(isoToISTInputValue(f.due_at));
-                        }}
-                        title="Reschedule"
-                      >
-                        <CalendarClock className="size-4" />
-                      </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="size-8">
-                            <MoreHorizontal className="size-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem variant="destructive" onSelect={() => handleDelete(f.id)}>
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">{f.outcome_note ?? "Done"}</span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem variant="destructive" onSelect={() => handleDelete(f.id)}>
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              ) : (
+                <span className="shrink-0 text-xs text-muted-foreground">{f.outcome_note ?? "Done"}</span>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 pl-4">
+              <span className="text-xs text-muted-foreground">{findLabel(FOLLOW_UP_TYPES, f.type)}</span>
+              <StatusBadge
+                label={findLabel(FOLLOW_UP_PRIORITIES, f.priority)}
+                className={findBadgeClass(FOLLOW_UP_PRIORITIES, f.priority)}
+              />
+              <span className={`text-xs ${isOverdue(f) ? "font-medium text-destructive" : "text-muted-foreground"}`}>
+                {formatDateTime(f.due_at)}
+              </span>
+              <Select value={f.assigned_to ?? "unassigned"} onValueChange={(v) => handleReassign(f.id, v)} disabled={isPending}>
+                <SelectTrigger className="h-7 w-36 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {staff.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.full_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        ))}
       </div>
     );
   }
 
   return (
     <>
-      <Tabs defaultValue="today">
-        <TabsList>
-          <TabsTrigger value="today">Today ({groups.today.length})</TabsTrigger>
-          <TabsTrigger value="overdue">Overdue ({groups.overdue.length})</TabsTrigger>
-          <TabsTrigger value="upcoming">Upcoming ({groups.upcoming.length})</TabsTrigger>
-          <TabsTrigger value="completed">Completed</TabsTrigger>
-          <TabsTrigger value="all">All</TabsTrigger>
-        </TabsList>
-        <TabsContent value="today" className="mt-4">
-          {renderList(groups.today)}
-        </TabsContent>
-        <TabsContent value="overdue" className="mt-4">
-          {renderList(groups.overdue)}
-        </TabsContent>
-        <TabsContent value="upcoming" className="mt-4">
-          {renderList(groups.upcoming)}
-        </TabsContent>
-        <TabsContent value="completed" className="mt-4">
-          {renderList(groups.completed)}
-        </TabsContent>
-        <TabsContent value="all" className="mt-4">
-          {renderList(groups.all)}
-        </TabsContent>
-      </Tabs>
+      <div className="flex flex-wrap gap-1.5 rounded-lg bg-muted p-1">
+        {TABS.map((t) => (
+          <button
+            key={t.value}
+            type="button"
+            onClick={() => setTab(t.value)}
+            className={cn(
+              "rounded-md px-2.5 py-1 text-sm font-medium transition-colors",
+              tab === t.value
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {t.label}
+            {t.value === "completed" || t.value === "all" ? "" : ` (${groups[t.value].length})`}
+          </button>
+        ))}
+      </div>
+      <div className="mt-4">{renderList(groups[tab])}</div>
 
       <Dialog open={!!completing} onOpenChange={(open) => !open && setCompleting(null)}>
         <DialogContent className="sm:max-w-sm">

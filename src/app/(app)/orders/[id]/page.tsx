@@ -55,31 +55,21 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
           </CardHeader>
           <CardContent>
             {items && items.length ? (
-              <div className="overflow-x-auto rounded-lg border border-border">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border bg-muted/50 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      <th className="p-3">Description</th>
-                      <th className="p-3">Area</th>
-                      <th className="p-3">Size</th>
-                      <th className="p-3 text-right">Qty</th>
-                      <th className="p-3 text-right">Rate</th>
-                      <th className="p-3 text-right">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {items.map((item) => (
-                      <tr key={item.id} className="border-b border-border last:border-0">
-                        <td className="p-3 text-foreground">{item.description}</td>
-                        <td className="p-3 text-muted-foreground">{item.section ?? "—"}</td>
-                        <td className="p-3 text-muted-foreground">{item.size ?? "—"}</td>
-                        <td className="p-3 text-right tabular-nums text-muted-foreground">{item.quantity}</td>
-                        <td className="p-3 text-right tabular-nums text-muted-foreground">{formatINR(item.rate, { precise: true })}</td>
-                        <td className="p-3 text-right font-medium tabular-nums text-foreground">{formatINR(item.amount)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="divide-y divide-border rounded-lg border border-border">
+                {items.map((item) => (
+                  <div key={item.id} className="flex flex-col gap-1 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="min-w-0 text-sm font-medium text-foreground">{item.description}</p>
+                      <p className="shrink-0 text-sm font-medium tabular-nums text-foreground">{formatINR(item.amount)}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                      <span>Area: {item.section ?? "—"}</span>
+                      <span>Size: {item.size ?? "—"}</span>
+                      <span>Qty: {item.quantity}</span>
+                      <span>Rate: {formatINR(item.rate, { precise: true })}</span>
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : (
               <p className="py-8 text-center text-sm text-muted-foreground">No items on this order.</p>
