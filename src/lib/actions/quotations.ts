@@ -6,7 +6,7 @@ import { canAccessFloor, getCurrentProfile } from "@/lib/auth";
 import { getActiveFloorId } from "@/lib/floor-context";
 import { createClient } from "@/lib/supabase/server";
 import type { FloorId } from "@/lib/supabase/types";
-import { selectionItemSchema } from "@/lib/validations/quotation";
+import { quotationRequiredFieldsError, selectionItemSchema } from "@/lib/validations/quotation";
 
 /** Creates an empty Selection — a quotations row in status 'draft' — or,
  * when `startAsQuotation` is set, the same row starting directly at
@@ -163,6 +163,13 @@ export async function removeSelectionItem(itemId: string, quotationId: string) {
  * Quotation and an approved Selection both end up at the same status. */
 export async function approveSelection(id: string) {
   const supabase = await createClient();
+
+  const { data: quotation, error: fetchError } = await supabase.from("quotations").select("*").eq("id", id).single();
+  if (fetchError || !quotation) return { error: fetchError?.message ?? "Quotation not found." };
+
+  const requiredError = quotationRequiredFieldsError(quotation);
+  if (requiredError) return { error: requiredError };
+
   const { error } = await supabase
     .from("quotations")
     .update({ status: "awaiting_approval", locked_at: new Date().toISOString() })

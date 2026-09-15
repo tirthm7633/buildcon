@@ -27,12 +27,14 @@ function InlineField({
   value,
   editable,
   placeholder,
+  required,
   onSave,
 }: {
   label: string;
   value: string;
   editable: boolean;
   placeholder?: string;
+  required?: boolean;
   onSave: (next: string) => void;
 }) {
   const [local, setLocal] = useState(value);
@@ -41,10 +43,14 @@ function InlineField({
     setPrevValue(value);
     setLocal(value);
   }
+  const missing = !!required && !value.trim();
 
   return (
     <div>
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+        {label}
+        {required ? <span className="ml-0.5 text-destructive">*</span> : null}
+      </p>
       {editable ? (
         <input
           value={local}
@@ -53,7 +59,9 @@ function InlineField({
             if (local !== value) onSave(local);
           }}
           placeholder={placeholder}
-          className="mt-0.5 w-full rounded-md border border-transparent bg-transparent px-1.5 py-1 text-sm text-foreground outline-none transition-colors hover:border-border focus:border-primary focus:bg-background"
+          className={`mt-0.5 w-full rounded-md border bg-transparent px-1.5 py-1 text-sm text-foreground outline-none transition-colors hover:border-border focus:border-primary focus:bg-background ${
+            missing ? "border-destructive/40" : "border-transparent"
+          }`}
         />
       ) : (
         <p className="mt-0.5 px-1.5 py-1 text-sm text-foreground">{value || "—"}</p>
@@ -155,6 +163,7 @@ export function SelectionDocument({
             value={quotation.customer_name}
             editable={editable}
             placeholder="Customer name"
+            required
             onSave={(v) => saveField("customer_name", v)}
           />
           <InlineField
@@ -162,6 +171,7 @@ export function SelectionDocument({
             value={quotation.customer_phone}
             editable={editable}
             placeholder="Phone number"
+            required
             onSave={(v) => saveField("customer_phone", v)}
           />
           <ReadOnlyField label="Selection / Quotation Date" value={formatDate(quotation.issue_date)} />
@@ -175,7 +185,9 @@ export function SelectionDocument({
             onSave={(v) => saveField("reference", v)}
           />
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Attended by</p>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Attended by<span className="ml-0.5 text-destructive">*</span>
+            </p>
             {editable ? (
               <Select value={quotation.attended_by ?? "none"} onValueChange={saveAttendedBy}>
                 <SelectTrigger className="mt-0.5 h-8 w-full border-transparent bg-transparent px-1.5 text-sm hover:border-border">
@@ -202,6 +214,7 @@ export function SelectionDocument({
             value={quotation.customer_address ?? ""}
             editable={editable}
             placeholder="Delivery / site address"
+            required
             onSave={(v) => saveField("customer_address", v)}
           />
         </div>

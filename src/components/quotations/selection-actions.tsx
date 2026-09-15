@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { approveSelection, deleteQuotation } from "@/lib/actions/quotations";
 import { placeOrder as placeOrderAction } from "@/lib/actions/orders";
+import { quotationRequiredFieldsError } from "@/lib/validations/quotation";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -81,6 +82,12 @@ export function SelectionActions({
   const isQuotationContext = !wasDraft;
 
   function approve() {
+    const requiredError = quotationRequiredFieldsError(quotation);
+    if (requiredError) {
+      toast.error(requiredError);
+      return;
+    }
+
     // For a Selection this always just flips it into the Quotations view.
     // For a Quotation, only the floors with the Tile Orders module actually
     // transfer it into a real order — elsewhere it still just locks in
