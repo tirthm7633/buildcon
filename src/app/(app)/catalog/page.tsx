@@ -24,16 +24,21 @@ export default async function CatalogPage() {
       .range(from, to);
 
   // PostgREST caps a single response at 1000 rows by default — with 1600+
-  // products now in the catalog, a plain select silently truncates. Page
-  // through with .range() until a batch comes back short of the page size.
+  // products now in the catalog, a plain select silently truncates. Get the
+  // real count first, then fire every page's request at once instead of
+  // waiting on each in turn — with ~1,600 rows that's the difference
+  // between one round trip and two back-to-back ones.
   const PAGE_SIZE = 1000;
-  const items: NonNullable<Awaited<ReturnType<typeof fetchPage>>["data"]> = [];
-  for (let from = 0; ; from += PAGE_SIZE) {
-    const { data: page } = await fetchPage(from, from + PAGE_SIZE - 1);
-    if (!page?.length) break;
-    items.push(...page);
-    if (page.length < PAGE_SIZE) break;
-  }
+  const { count } = await supabase
+    .from("catalogue_items")
+    .select("id", { count: "exact", head: true })
+    .eq("floor_id", floor.id);
+
+  const pageCount = Math.max(1, Math.ceil((count ?? 0) / PAGE_SIZE));
+  const pages = await Promise.all(
+    Array.from({ length: pageCount }, (_, i) => fetchPage(i * PAGE_SIZE, (i + 1) * PAGE_SIZE - 1))
+  );
+  const items = pages.flatMap((p) => p.data ?? []);
 
   const rows: CatalogCardData[] = (items ?? []).map(({ catalogue_images, catalogue_item_sizes, ...item }) => {
     const images = (catalogue_images as unknown as { url: string; position: number }[]) ?? [];

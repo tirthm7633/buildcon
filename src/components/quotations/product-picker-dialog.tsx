@@ -84,7 +84,7 @@ export function ProductPickerDialog({
                   <div className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
                     {p.imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={p.imageUrl} alt="" className="size-full object-cover" />
+                      <img src={p.imageUrl} alt="" loading="lazy" decoding="async" className="size-full object-cover" />
                     ) : (
                       <Package className="size-8 text-muted-foreground" />
                     )}

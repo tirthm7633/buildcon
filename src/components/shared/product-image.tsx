@@ -36,7 +36,7 @@ export function ProductImage({
       >
         {src ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={src} alt={alt} className="size-full object-cover" />
+          <img src={src} alt={alt} loading="lazy" decoding="async" className="size-full object-cover" />
         ) : (
           <Package className={cn("size-6 text-muted-foreground", iconClassName)} />
         )}
