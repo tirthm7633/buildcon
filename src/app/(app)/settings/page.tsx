@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/shared/page-header";
 import { CompanySettingsForm } from "@/components/settings/company-settings-form";
 import { LogoUploader } from "@/components/settings/logo-uploader";
+import { ThemeSwitcher } from "@/components/settings/theme-switcher";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function SettingsPage() {
@@ -20,6 +21,15 @@ export default async function SettingsPage() {
         title="Settings"
         description={owner ? "Business profile, branding and quotation defaults." : "View-only — ask the owner to make changes."}
       />
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Appearance</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ThemeSwitcher />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

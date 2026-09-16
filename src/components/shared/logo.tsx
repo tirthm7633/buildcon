@@ -32,16 +32,23 @@ export function Logo({
   return (
     <div className={cn("flex items-center gap-2.5", className)}>
       {logoUrl ? (
-        <Image
-          src={logoUrl}
-          alt={companyName}
-          width={1037}
-          height={240}
-          className="shrink-0 object-contain"
-          style={{ width, height }}
-          unoptimized
-          priority={priority}
-        />
+        // The uploaded lockup sits on a solid white ground (see the note
+        // above) — this plate keeps that ground looking deliberate instead
+        // of a stray white rectangle now that every surface behind it is
+        // dark. Intentionally not theme-driven: its job is to neutralize
+        // the asset's own background, not to match the app's palette.
+        <div className="shrink-0 rounded-md bg-white p-1.5">
+          <Image
+            src={logoUrl}
+            alt={companyName}
+            width={1037}
+            height={240}
+            className="object-contain"
+            style={{ width, height }}
+            unoptimized
+            priority={priority}
+          />
+        </div>
       ) : (
         <div
           className={cn(

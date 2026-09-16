@@ -48,7 +48,13 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* Three selectable themes (Settings → Appearance), picked via
+ * data-app-theme on <html>. Light is the default (:root) so the app still
+ * renders correctly before the theme-init script (see layout.tsx) has a
+ * chance to apply a stored preference. */
+
 :root {
+  /* Light — the original warm cream and brass look */
   --background: #faf8f4;
   --foreground: #2b241d;
   --card: #ffffff;
@@ -81,9 +87,11 @@
   --sidebar-accent-foreground: #2b241d;
   --sidebar-border: #e8e1d4;
   --sidebar-ring: #8a6a3b;
+  color-scheme: light;
 }
 
-.dark {
+[data-app-theme="dark"] {
+  /* Dark — warm near-black with the brand's own brass-gold accent (no blue) */
   --background: #1b1712;
   --foreground: #ece5d8;
   --card: #231e18;
@@ -115,6 +123,43 @@
   --sidebar-accent-foreground: #ece5d8;
   --sidebar-border: #ffffff14;
   --sidebar-ring: #c9a165;
+  color-scheme: dark;
+}
+
+[data-app-theme="obsidian-steel"] {
+  /* Obsidian Steel — true black with blue pulled almost to grey */
+  --background: #0c0d0f;
+  --foreground: #e3e5e8;
+  --card: #17181b;
+  --card-foreground: #e3e5e8;
+  --popover: #17181b;
+  --popover-foreground: #e3e5e8;
+  --primary: #5b7aa5;
+  --primary-foreground: #0d1116;
+  --secondary: #1b1c20;
+  --secondary-foreground: #cfd2d7;
+  --muted: #1a1b1e;
+  --muted-foreground: #868a92;
+  --accent: #1e232b;
+  --accent-foreground: #8fa9c9;
+  --destructive: #d9585c;
+  --border: #232529;
+  --input: #232529;
+  --ring: #5b7aa5;
+  --chart-1: #5b7aa5;
+  --chart-2: #7a9ac2;
+  --chart-3: #79c096;
+  --chart-4: #d6b876;
+  --chart-5: #a690c4;
+  --sidebar: #08090a;
+  --sidebar-foreground: #cfd2d7;
+  --sidebar-primary: #5b7aa5;
+  --sidebar-primary-foreground: #0d1116;
+  --sidebar-accent: #1c1e22;
+  --sidebar-accent-foreground: #cfd2d7;
+  --sidebar-border: #202226;
+  --sidebar-ring: #5b7aa5;
+  color-scheme: dark;
 }
 
 @layer base {
